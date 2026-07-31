@@ -420,6 +420,11 @@ async function startServer() {
       for (const t of tablesToTune) {
         await ensureInnoDB(t);
         await optimizeTableCharset(t);
+        try {
+          await connection.query(`ANALYZE TABLE \`${t}\``);
+        } catch {
+          // Ignore analyze table warnings
+        }
       }
 
       await connection.query(`
@@ -509,9 +514,29 @@ async function startServer() {
         localDb = JSON.parse(fs.readFileSync(FALLBACK_FILE, 'utf8'));
         console.log('Loaded local fallback database from file.');
         // Ensure arrays are initialized if missing, but DO NOT wipe existing data
-        if (!localDb.destinations) localDb.destinations = [];
+        if (!localDb.users) localDb.users = [];
+        if (!localDb.subscribers) localDb.subscribers = [];
         if (!localDb.offers) localDb.offers = [];
         if (!localDb.visas) localDb.visas = [];
+        if (!localDb.destinations) localDb.destinations = [];
+        if (!localDb.bookings) localDb.bookings = [];
+        if (!localDb.social_links) localDb.social_links = [];
+        if (!localDb.contact_info) localDb.contact_info = [];
+        
+        // Ensure default admin user exists if users array is empty
+        if (localDb.users.length === 0) {
+          const salt = await bcrypt.genSalt(10);
+          const adminEmail = process.env.ADMIN_EMAIL || "admin@sabreenco.com";
+          const adminPass = process.env.ADMIN_PASSWORD || "secure_password";
+          const hashedAdminPassword = await bcrypt.hash(adminPass, salt);
+          localDb.users.push({
+            id: 1,
+            email: adminEmail,
+            password: hashedAdminPassword,
+            created_at: new Date().toISOString()
+          });
+          saveLocalDb();
+        }
         return;
       } catch (e) {
         console.error('Failed to parse local fallback database file, re-initializing:', e);
@@ -535,6 +560,9 @@ async function startServer() {
       }
     ];
 
+    localDb.subscribers = [];
+    localDb.bookings = [];
+
     localDb.contact_info = [
       {
         id: 1,
@@ -552,21 +580,25 @@ async function startServer() {
     ];
 
     localDb.destinations = [];
-
     localDb.offers = [];
-
     localDb.visas = [];
 
     saveLocalDb();
   }
 
+  let saveDbTimeout: NodeJS.Timeout | null = null;
   function saveLocalDb() {
-    // Perform asynchronous, non-blocking formatted JSON writes to make the database file readable/editable
-    fs.writeFile(FALLBACK_FILE, JSON.stringify(localDb, null, 2), 'utf8', (err) => {
-      if (err) {
-        console.error('Failed to write local fallback database file:', err);
-      }
-    });
+    if (typeof clearCache === 'function') {
+      try { clearCache(); } catch { /* ignore */ }
+    }
+    if (saveDbTimeout) clearTimeout(saveDbTimeout);
+    saveDbTimeout = setTimeout(() => {
+      fs.writeFile(FALLBACK_FILE, JSON.stringify(localDb, null, 2), 'utf8', (err) => {
+        if (err) {
+          console.error('Failed to write local fallback database file:', err);
+        }
+      });
+    }, 50);
   }
 
   const localQuery = async (sql: string, params: any[] = []): Promise<any> => {
@@ -681,7 +713,7 @@ async function startServer() {
       }
 
       const newId = localDb[table as keyof LocalDbData].length > 0 
-        ? Math.max(...localDb[table as keyof LocalDbData].map((x: any) => x.id)) + 1 
+        ? Math.max(0, ...localDb[table as keyof LocalDbData].map((x: any) => Number(x.id) || 0)) + 1 
         : 1;
 
       if (table === 'offers') {
@@ -799,8 +831,8 @@ async function startServer() {
 
       if (s.includes('set sort_order = ? where id = ?')) {
         const sortOrder = params[0];
-        const id = Number(params[1]);
-        const idx = localDb[table as keyof LocalDbData].findIndex((x: any) => x.id === id);
+        const id = params[1];
+        const idx = localDb[table as keyof LocalDbData].findIndex((x: any) => String(x.id) === String(id));
         if (idx !== -1) {
           (localDb[table as keyof LocalDbData][idx] as any).sort_order = sortOrder;
           saveLocalDb();
@@ -810,8 +842,8 @@ async function startServer() {
       }
 
       if (table === 'offers') {
-        const id = Number(params[params.length - 1]);
-        const idx = localDb.offers.findIndex(x => x.id === id);
+        const id = params[params.length - 1];
+        const idx = localDb.offers.findIndex(x => String(x.id) === String(id));
         if (idx !== -1) {
           localDb.offers[idx] = {
             ...localDb.offers[idx],
@@ -835,8 +867,8 @@ async function startServer() {
           return { affectedRows: 1 };
         }
       } else if (table === 'visas') {
-        const id = Number(params[params.length - 1]);
-        const idx = localDb.visas.findIndex(x => x.id === id);
+        const id = params[params.length - 1];
+        const idx = localDb.visas.findIndex(x => String(x.id) === String(id));
         if (idx !== -1) {
           localDb.visas[idx] = {
             ...localDb.visas[idx],
@@ -855,8 +887,8 @@ async function startServer() {
           return { affectedRows: 1 };
         }
       } else if (table === 'destinations') {
-        const id = Number(params[params.length - 1]);
-        const idx = localDb.destinations.findIndex(x => x.id === id);
+        const id = params[params.length - 1];
+        const idx = localDb.destinations.findIndex(x => String(x.id) === String(id));
         if (idx !== -1) {
           localDb.destinations[idx] = {
             ...localDb.destinations[idx],
@@ -878,8 +910,8 @@ async function startServer() {
           return { affectedRows: 1 };
         }
       } else if (table === 'bookings') {
-        const id = Number(params[params.length - 1]);
-        const idx = localDb.bookings.findIndex(x => x.id === id);
+        const id = params[params.length - 1];
+        const idx = localDb.bookings.findIndex(x => String(x.id) === String(id));
         if (idx !== -1) {
           const setClauseMatch = sql.match(/set\s+([\s\S]+?)\s+where/i);
           if (setClauseMatch) {
@@ -915,9 +947,9 @@ async function startServer() {
         return { affectedRows: 1 };
       }
 
-      const id = Number(params[0]);
+      const id = params[0];
       const initialLength = localDb[table as keyof LocalDbData].length;
-      localDb[table as keyof LocalDbData] = localDb[table as keyof LocalDbData].filter((x: any) => x.id !== id) as any;
+      localDb[table as keyof LocalDbData] = localDb[table as keyof LocalDbData].filter((x: any) => String(x.id) !== String(id)) as any;
       
       if (localDb[table as keyof LocalDbData].length !== initialLength) {
         saveLocalDb();

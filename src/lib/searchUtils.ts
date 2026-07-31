@@ -1,26 +1,38 @@
 import { parseStringArray } from "./utils";
 
+// High-performance memoization caches for search normalization & stemming
+const arabicNormalizeCache = new Map<string, string>();
+const stemTextCache = new Map<string, string>();
+const MAX_CACHE_SIZE = 1500;
+
 /**
  * Normalizes Arabic text by removing diacritics, normalizing different forms of Alif,
  * Taa Marbouta, Alif Maqsoura, and Hamza for diacritics-insensitive and spelling-insensitive searches.
  */
 export function normalizeArabic(text: string): string {
   if (!text) return "";
-  return (
-    text
-      .toLowerCase()
-      .trim()
-      // Remove diacritics
-      .replace(/[\u064B-\u065F]/g, "")
-      // Normalize Alifs
-      .replace(/[أإآٱ]/g, "ا")
-      // Normalize Taa Marbouta to Haa
-      .replace(/ة/g, "ه")
-      // Normalize Alif Maqsoura to Yaa
-      .replace(/ى/g, "ي")
-      // Normalize hamzas
-      .replace(/[ؤئ]/g, "ء")
-  );
+  const cached = arabicNormalizeCache.get(text);
+  if (cached !== undefined) return cached;
+
+  const result = text
+    .toLowerCase()
+    .trim()
+    // Remove diacritics
+    .replace(/[\u064B-\u065F]/g, "")
+    // Normalize Alifs
+    .replace(/[أإآٱ]/g, "ا")
+    // Normalize Taa Marbouta to Haa
+    .replace(/ة/g, "ه")
+    // Normalize Alif Maqsoura to Yaa
+    .replace(/ى/g, "ي")
+    // Normalize hamzas
+    .replace(/[ؤئ]/g, "ء");
+
+  if (arabicNormalizeCache.size >= MAX_CACHE_SIZE) {
+    arabicNormalizeCache.clear();
+  }
+  arabicNormalizeCache.set(text, result);
+  return result;
 }
 
 /**
@@ -41,6 +53,8 @@ export function getSearchTerms(query: string): string[] {
  */
 export function normalizeAndStemText(text: string): string {
   if (!text) return "";
+  const cached = stemTextCache.get(text);
+  if (cached !== undefined) return cached;
 
   // Split into words by whitespace
   const words = text.toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -103,7 +117,12 @@ export function normalizeAndStemText(text: string): string {
     );
   });
 
-  return processedWords.join(" ");
+  const result = processedWords.join(" ");
+  if (stemTextCache.size >= MAX_CACHE_SIZE) {
+    stemTextCache.clear();
+  }
+  stemTextCache.set(text, result);
+  return result;
 }
 
 /**

@@ -4,6 +4,8 @@ import { parseStringArray } from "./utils";
 // Constants
 const CACHE_TTL = 300000; // 5 minutes
 
+const inFlightRequests = new Map<string, Promise<any>>();
+
 function getCachedData(key: string) {
   const memEntry = (globalThis as any)._apiCache?.[key];
   if (memEntry && Date.now() - memEntry.timestamp < CACHE_TTL) {
@@ -27,50 +29,72 @@ function clearCache(key?: string) {
   } else {
     (globalThis as any)._apiCache = {};
   }
+  inFlightRequests.clear();
 }
 
 let apiToken: string | null = localStorage.getItem("sabreen_token");
 
 async function fetchApi(endpoint: string, options: RequestInit = {}) {
-  const headers: any = {
-    "Content-Type": "application/json",
-    ...options.headers,
-  };
-
-  const currentToken = apiToken || localStorage.getItem("sabreen_token");
-  if (currentToken) {
-    headers["Authorization"] = `Bearer ${currentToken}`;
+  const method = options.method || "GET";
+  
+  // Deduplicate concurrent GET requests to avoid duplicate network roundtrips
+  if (method === "GET") {
+    if (inFlightRequests.has(endpoint)) {
+      return inFlightRequests.get(endpoint);
+    }
   }
 
-  const res = await fetch(endpoint, {
-    ...options,
-    headers,
-  });
-  if (!res.ok) {
-    let errStr = `Error ${res.status}: ${res.statusText}`;
-    try {
-      const text = await res.text();
+  const executeFetch = async () => {
+    const headers: any = {
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    const currentToken = apiToken || localStorage.getItem("sabreen_token");
+    if (currentToken) {
+      headers["Authorization"] = `Bearer ${currentToken}`;
+    }
+
+    const res = await fetch(endpoint, {
+      ...options,
+      headers,
+    });
+    if (!res.ok) {
+      let errStr = `Error ${res.status}: ${res.statusText}`;
       try {
-        const data = JSON.parse(text);
-        if (data.error) {
-          if (typeof data.error === "string") {
-            errStr = data.error;
-          } else if (typeof data.error === "object") {
-            errStr = data.error.message || JSON.stringify(data.error);
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data.error) {
+            if (typeof data.error === "string") {
+              errStr = data.error;
+            } else if (typeof data.error === "object") {
+              errStr = data.error.message || JSON.stringify(data.error);
+            }
+          } else if (data.message) {
+            errStr = data.message;
           }
-        } else if (data.message) {
-          errStr = data.message;
+        } catch {
+          // Not JSON, use the raw text if it's short
+          if (text && text.length < 200) errStr = text;
         }
       } catch {
-        // Not JSON, use the raw text if it's short
-        if (text && text.length < 200) errStr = text;
+        // ignore
       }
-    } catch {
-      // ignore
+      throw new Error(errStr);
     }
-    throw new Error(errStr);
+    return res.json();
+  };
+
+  if (method === "GET") {
+    const promise = executeFetch().finally(() => {
+      inFlightRequests.delete(endpoint);
+    });
+    inFlightRequests.set(endpoint, promise);
+    return promise;
   }
-  return res.json();
+
+  return executeFetch();
 }
 
 export const apiService = {
@@ -94,13 +118,17 @@ export const apiService = {
     const endpoint = force ? `/api/init?t=${Date.now()}` : "/api/init";
     const data = await fetchApi(endpoint);
 
+    // Parse features and notIncluded for offers
+    data.offers = (data.offers || []).map((item: any) => ({
+      ...item,
+      features: parseStringArray(item.features),
+      notIncluded: parseStringArray(item.notIncluded),
+    }));
+
     // Parse features for visas
     data.visas = (data.visas || []).map((item: any) => ({
       ...item,
-      features:
-        typeof item.features === "string"
-          ? JSON.parse(item.features || "[]")
-          : item.features || [],
+      features: parseStringArray(item.features),
     }));
 
     // Parse phones for contactInfo
