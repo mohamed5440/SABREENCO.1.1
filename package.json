@@ -9,7 +9,6 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "postinstall": "npm run build",
     "start": "NODE_ENV=production node dist/server.cjs"
   },
   "dependencies": {
