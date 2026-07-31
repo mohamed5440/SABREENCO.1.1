@@ -1,0 +1,8 @@
+{
+  "name": "SABREENCO.1.1",
+  "description": "Imported from GitHub: mohamed5440/sabreenco",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
