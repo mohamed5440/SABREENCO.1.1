@@ -349,10 +349,9 @@ export const BookingDetailsModal = React.memo(function BookingDetailsModal({
                     })...`;
                     const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
                     try {
-                      window.open(whatsappUrl, "_blank");
+                      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
                     } catch (e) {
                       console.warn("window.open blocked in sandbox", e);
-                      window.location.href = whatsappUrl;
                     }
                   }}
                   className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-semibold rounded-xl transition cursor-pointer"

@@ -284,10 +284,17 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       setWhatsappFallbackUrl(whatsappUrl);
 
       // Update the opened window with the whatsapp URL
-      if (whatsappWindow) {
+      if (whatsappWindow && !whatsappWindow.closed) {
         whatsappWindow.location.href = whatsappUrl;
       } else {
-        window.location.href = whatsappUrl;
+        try {
+          const w = window.open(whatsappUrl, "_blank");
+          if (!w) {
+            console.warn("Popup blocked; fallback button is available in success UI");
+          }
+        } catch (e) {
+          console.warn("Could not open WhatsApp window:", e);
+        }
       }
 
       // Show success screen immediately

@@ -30,8 +30,15 @@ export const OfferDetailsPage: React.FC<OfferDetailsPageProps> = ({
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+    if (isImageModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isImageModalOpen]);
 
   if (isLoading) {
     return (
@@ -106,6 +113,7 @@ export const OfferDetailsPage: React.FC<OfferDetailsPageProps> = ({
             <div className="w-full aspect-[5/4] rounded-xl overflow-hidden border border-gray-200/80 relative group bg-[#eaedf1] flex justify-center items-center p-4 sm:p-6 md:p-8 shadow-xs">
               {/* Soft Ambient Blur Background */}
               <img
+                decoding="async"
                 src={offer.image}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-30 scale-125 select-none pointer-events-none"
@@ -234,10 +242,9 @@ export const OfferDetailsPage: React.FC<OfferDetailsPageProps> = ({
                   onClick={() => {
                     const url = getWhatsAppBookingUrl(offer);
                     try {
-                      window.open(url, "_blank");
+                      window.open(url, "_blank", "noopener,noreferrer");
                     } catch (e) {
                       console.warn("window.open blocked in sandbox", e);
-                      window.location.href = url;
                     }
                   }}
                   className="w-full bg-primary hover:bg-primary-hover text-white py-4 md:py-5 rounded-xl font-medium text-base sm:text-lg md:text-xl transition-all flex items-center justify-center gap-2 sm:gap-3 active:scale-95 cursor-pointer"
@@ -290,6 +297,8 @@ export const OfferDetailsPage: React.FC<OfferDetailsPageProps> = ({
                   <X size={24} />
                 </button>
                 <img
+                  loading="lazy"
+                  decoding="async"
                   src={offer.image}
                   alt={offer.title}
                   className="max-w-full max-h-[88vh] object-contain rounded-xl shadow-2xl"

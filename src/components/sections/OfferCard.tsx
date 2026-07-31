@@ -33,6 +33,8 @@ export const OfferCard: React.FC<OfferCardProps> = React.memo(({
         <div className="w-full aspect-[5/4] bg-[#eaedf1] overflow-hidden relative shrink-0 border-b border-gray-200 group/image flex items-center justify-center p-2.5 sm:p-3">
           {/* Soft Ambient Blur Glow */}
           <img
+            loading="lazy"
+            decoding="async"
             src={offer.image}
             alt=""
             className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-125 select-none pointer-events-none"
@@ -89,11 +91,11 @@ export const OfferCard: React.FC<OfferCardProps> = React.memo(({
 
             {/* Price (Left side in RTL) */}
             <div className="text-lg sm:text-xl font-bold text-primary flex items-baseline gap-1 shrink-0">
-              <span className="text-[10px] text-gray-500 font-normal ml-1">
+              <span className="text-[10px] font-normal ml-1">
                 يبدأ من
               </span>
               <span>{offer.price}</span>
-              <span className="text-xs font-semibold text-gray-500 mr-1">
+              <span className="text-xs font-semibold mr-1">
                 {offer.currency || "EGP"}
               </span>
             </div>
@@ -107,10 +109,9 @@ export const OfferCard: React.FC<OfferCardProps> = React.memo(({
                 e.stopPropagation();
                 const url = getWhatsAppBookingUrl(offer);
                 try {
-                  window.open(url, "_blank");
+                  window.open(url, "_blank", "noopener,noreferrer");
                 } catch (e) {
                   console.warn("window.open blocked in sandbox", e);
-                  window.location.href = url;
                 }
               }}
               className="flex-1 bg-primary hover:bg-primary-hover text-white py-2.5 px-3 rounded-xl font-medium text-xs md:text-sm transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
@@ -163,6 +164,8 @@ export const OfferCard: React.FC<OfferCardProps> = React.memo(({
                 <X size={24} />
               </button>
               <img
+                loading="lazy"
+                decoding="async"
                 src={offer.image}
                 alt={offer.title}
                 className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl"

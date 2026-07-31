@@ -166,7 +166,11 @@ export default function App() {
       if (hasFetchedInit && !force) return;
 
       try {
-        const user = await apiService.getCurrentUser().catch(() => null);
+        const userPromise = apiService.getCurrentUser().catch(() => null);
+        const initDataPromise = apiService.getInitData(force).catch(() => null);
+
+        const [user, initData] = await Promise.all([userPromise, initDataPromise]);
+
         if (user) {
           setIsLoggedIn(true);
           setCurrentUser(user);
@@ -177,10 +181,7 @@ export default function App() {
           setIsLoginOpen(true);
         }
 
-        const [initData, bookings] = await Promise.all([
-          apiService.getInitData(force).catch(() => null),
-          user ? apiService.getBookings().catch(() => []) : Promise.resolve([]),
-        ]);
+        const bookings = user ? await apiService.getBookings().catch(() => []) : [];
 
         if (initData) {
           setSiteData((prev) => {
@@ -353,7 +354,6 @@ export default function App() {
         fetchData(page === "dashboard" || isLoggedIn);
       }
       setCurrentPage(page);
-      window.scrollTo({ top: 0, behavior: "smooth" });
       
       if (service) {
         setBookingService(service);
@@ -453,7 +453,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div
-        className="min-h-[100dvh] bg-white font-sans text-gray-800 selection:bg-primary/5 selection:text-primary-dark"
+        className="min-h-[100dvh] bg-white font-sans text-gray-800 selection:bg-primary/5 selection:text-primary-dark overflow-x-hidden"
         dir="rtl"
       >
         <Header
@@ -463,7 +463,7 @@ export default function App() {
           socialLinks={siteData.socialLinks}
         />
         <main className="pt-[4.5rem] md:pt-[5rem] bg-white relative min-h-[60vh]">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" onExitComplete={() => window.scrollTo(0, 0)}>
             <motion.div
               key={currentPage}
               initial={{ opacity: 0, y: 10 }}

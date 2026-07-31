@@ -103,6 +103,8 @@ export const VisaPage: React.FC<VisaPageProps> = ({ onNavigate, visas }) => {
                     <>
                       {/* Ambient Blur Glow */}
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={visa.image}
                         alt=""
                         className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-125 select-none pointer-events-none"

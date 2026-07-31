@@ -561,8 +561,8 @@ async function startServer() {
   }
 
   function saveLocalDb() {
-    // Perform asynchronous, non-blocking minified JSON writes to prevent blocking the Node event loop
-    fs.writeFile(FALLBACK_FILE, JSON.stringify(localDb), 'utf8', (err) => {
+    // Perform asynchronous, non-blocking formatted JSON writes to make the database file readable/editable
+    fs.writeFile(FALLBACK_FILE, JSON.stringify(localDb, null, 2), 'utf8', (err) => {
       if (err) {
         console.error('Failed to write local fallback database file:', err);
       }
