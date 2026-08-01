@@ -146,8 +146,7 @@ export const OfferDetailsPage: React.FC<OfferDetailsPageProps> = ({
             {/* Content Title & Badges */}
             <div className="space-y-4 sm:space-y-5">
               <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-medium text-gray-800 leading-[1.3] flex items-center gap-2 sm:gap-3 flex-wrap">
-                {offer.title}{" "}
-                <span className="text-xl sm:text-2xl md:text-3xl">🔥</span>
+                {offer.title}
               </h1>
 
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -201,37 +200,43 @@ export const OfferDetailsPage: React.FC<OfferDetailsPageProps> = ({
             <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 md:p-6 relative overflow-hidden group hover:border-primary/20 transition-colors">
               {/* Pricing Section */}
               <div className="mb-5 sm:mb-6 pt-2 text-center">
-                <div className="flex items-baseline justify-center gap-1.5 text-primary flex-wrap">
-                  <span className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium tracking-normal">
-                    {offer.price}
-                  </span>
-                  <span className="text-sm sm:text-base md:text-lg lg:text-xl font-medium uppercase">
-                    {offer.currency || "جنيه مصري"}
-                  </span>
-                </div>
+                {(!offer.price || offer.price === "0" || offer.price.toString().includes("تواصل")) ? (
+                  <div className="inline-block bg-primary/10 text-primary font-bold text-lg sm:text-xl md:text-2xl px-4 py-2 rounded-xl">
+                    تواصل لمعرفة السعر
+                  </div>
+                ) : (
+                  <div className="flex items-baseline justify-center gap-1.5 text-primary flex-wrap">
+                    <span className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium tracking-normal">
+                      {offer.price}
+                    </span>
+                    <span className="text-sm sm:text-base md:text-lg lg:text-xl font-medium uppercase">
+                      {offer.currency || "جنيه مصري"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="h-px bg-gray-200/50 mb-5 sm:mb-6 w-full"></div>
 
-              {/* Highlights List */}
-              <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-                <div className="flex items-center gap-3 text-gray-800 font-medium text-xs sm:text-sm">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0">
-                    <ShieldCheck size={15} />
+              {/* Highlights List - Horizontal 3-Column Distribution */}
+              <div className="grid grid-cols-3 gap-2 mb-6 sm:mb-8 py-1">
+                <div className="flex flex-col items-center text-center gap-1.5 p-1">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <ShieldCheck size={16} />
                   </div>
-                  <span>تأكيد فوري للحجز</span>
+                  <span className="text-[11px] sm:text-xs font-semibold text-gray-800 leading-tight">تأكيد فوري للحجز</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-800 font-medium text-xs sm:text-sm">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0">
-                    <CheckCircle2 size={15} />
+                <div className="flex flex-col items-center text-center gap-1.5 p-1">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <CheckCircle2 size={16} />
                   </div>
-                  <span>ضمان أقل سعر متوفر</span>
+                  <span className="text-[11px] sm:text-xs font-semibold text-gray-800 leading-tight">ضمان أقل سعر</span>
                 </div>
-                <div className="flex items-center gap-3 text-gray-800 font-medium text-xs sm:text-sm">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-primary/5 flex items-center justify-center text-primary shrink-0">
-                    <Headphones size={15} />
+                <div className="flex flex-col items-center text-center gap-1.5 p-1">
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <Headphones size={16} />
                   </div>
-                  <span>دعم فني وتوجيه 24/7</span>
+                  <span className="text-[11px] sm:text-xs font-semibold text-gray-800 leading-tight">دعم فني 24/7</span>
                 </div>
               </div>
 

@@ -90,15 +90,21 @@ export const OfferCard: React.FC<OfferCardProps> = React.memo(({
             </div>
 
             {/* Price (Left side in RTL) */}
-            <div className="text-lg sm:text-xl font-bold text-primary flex items-baseline gap-1 shrink-0">
-              <span className="text-[10px] font-normal ml-1">
-                يبدأ من
-              </span>
-              <span>{offer.price}</span>
-              <span className="text-xs font-semibold mr-1">
-                {offer.currency || "EGP"}
-              </span>
-            </div>
+            {(!offer.price || offer.price === "0" || offer.price.toString().includes("تواصل")) ? (
+              <div className="text-xs sm:text-sm font-bold text-primary shrink-0 bg-primary/10 px-2.5 py-1 rounded-lg">
+                تواصل لمعرفة السعر
+              </div>
+            ) : (
+              <div className="text-lg sm:text-xl font-bold text-primary flex items-baseline gap-1 shrink-0">
+                <span className="text-[10px] font-normal ml-1">
+                  يبدأ من
+                </span>
+                <span>{offer.price}</span>
+                <span className="text-xs font-semibold mr-1">
+                  {offer.currency || "EGP"}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}

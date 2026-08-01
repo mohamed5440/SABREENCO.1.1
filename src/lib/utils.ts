@@ -79,12 +79,15 @@ export function getWhatsAppBookingUrl(offer: {
     console.warn("Error resolving dynamic WhatsApp number, falling back to default.", e);
   }
 
+  const isCustomPrice = !offer.price || offer.price === "0" || offer.price.toString().includes("تواصل");
+  const priceDisplay = isCustomPrice ? "تواصل لمعرفة السعر" : `${offer.price} ${offer.currency || "جنيه"}`;
+
   const text = `طلب حجز عرض جديد
 
 ---------------------------------
 
 العرض: ${offer.title}
-السعر: ${offer.price} ${offer.currency || "جنيه"}
+السعر: ${priceDisplay}
 المدة: ${offer.duration || "غير محدد"}
 الوجهة: ${offer.destination || "غير محدد"}
 
