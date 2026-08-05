@@ -159,6 +159,17 @@ export default function App() {
 
   const [hasFetchedInit, setHasFetchedInit] = useState(false);
 
+  // Meta Pixel tracking on page changes
+  useEffect(() => {
+    if (typeof window !== "undefined" && (window as any).fbq) {
+      try {
+        (window as any).fbq("track", "PageView");
+      } catch (e) {
+        console.warn("Meta Pixel track error:", e);
+      }
+    }
+  }, [currentPage]);
+
   // Fetch all data from MySQL
   const fetchData = useCallback(
     async (force = false) => {
