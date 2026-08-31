@@ -39,7 +39,7 @@ export const DestinationsPage: React.FC<DestinationsPageProps> = ({
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ delay: idx * 0.1, duration: 0.6 }}
-            className="group relative overflow-hidden rounded-xl aspect-[5/4] cursor-pointer transition-all duration-500 bg-white border border-gray-200"
+            className="group relative overflow-hidden rounded-xl aspect-[3/4] cursor-pointer transition-all duration-500 bg-white border border-gray-200"
             onClick={() =>
               onNavigate("offers", undefined, { filter: dest.name })
             }

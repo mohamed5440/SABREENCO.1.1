@@ -97,31 +97,21 @@ export const VisaPage: React.FC<VisaPageProps> = ({ onNavigate, visas }) => {
                 key={visa.id}
                 className="bg-white rounded-xl border border-gray-200 flex flex-col hover:border-primary/20 transition-all duration-300 group overflow-hidden"
               >
-                {/* Unified Image Container inside 5:4 aspect ratio */}
-                <div className="w-full aspect-[5/4] bg-[#eaedf1] overflow-hidden relative shrink-0 border-b border-gray-200 group/image flex items-center justify-center p-2.5 sm:p-3">
+                {/* Visa Card Image - Wide landscape format (16:9) filling the frame completely with no gaps */}
+                <div className="w-full aspect-[16/9] bg-gray-100 overflow-hidden relative shrink-0 border-b border-gray-200">
                   {visa.image ? (
-                    <>
-                      {/* Ambient Blur Glow */}
-                      <img
-                        loading="lazy"
-                        decoding="async"
-                        src={visa.image}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-125 select-none pointer-events-none"
-                        aria-hidden="true"
-                      />
-                      {/* Foreground Main Image (Uncropped) */}
-                      <img
-                        decoding="async"
-                        loading="lazy"
-                        src={optimizeImageUrl(visa.image, 600)}
-                        alt={visa.title}
-                        className="relative z-10 max-h-full max-w-full w-auto h-auto object-contain rounded-xl shadow-sm border border-black/5 group-hover:scale-[1.03] transition-all duration-500 ease-out"
-                        referrerPolicy="no-referrer"
-                      />
-                    </>
+                    <img
+                      decoding="async"
+                      loading="lazy"
+                      src={optimizeImageUrl(visa.image, 800)}
+                      alt={visa.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
-                    <FileText size={48} strokeWidth={1} className="text-gray-400" />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <FileText size={48} strokeWidth={1} className="text-gray-400" />
+                    </div>
                   )}
                 </div>
                 <div className="p-5 md:p-6 flex flex-col flex-1">

@@ -219,7 +219,7 @@ export const AboutPage: React.FC = () => {
             قيمنا
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 font-medium">
-            المبادئ والأسس الأخلاقية والمهنية التي نلتزم بها in كافة أعمالنا
+            المبادئ والأسس الأخلاقية والمهنية التي نلتزم بها في كافة أعمالنا
             اليومية.
           </p>
         </div>

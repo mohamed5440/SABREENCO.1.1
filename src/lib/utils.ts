@@ -33,11 +33,11 @@ export function optimizeImageUrl(url: string, width: number = 800) {
   if (!url) return "";
   if (url.includes("images.unsplash.com")) {
     const baseUrl = url.split("?")[0];
-    return `${baseUrl}?auto=format&fm=webp&fit=max&q=80&w=${width}`;
+    return `${baseUrl}?auto=format&fm=webp&fit=max&q=75&w=${width}`;
   }
   if (url.includes("picsum.photos")) {
     if (!url.includes(".webp")) {
-      return `${url.split("?")[0]}.webp?q=80`;
+      return `${url.split("?")[0]}.webp?q=75`;
     }
   }
   return url;

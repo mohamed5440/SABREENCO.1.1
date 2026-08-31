@@ -82,8 +82,24 @@ export function DashboardPage({
         .getSubscribers()
         .then((data) => setSubscribers(data || []))
         .catch((err) => console.error(err));
+    } else if (activeTab === "bookings" || activeTab === "overview") {
+      onRefresh?.();
     }
-  }, [activeTab]);
+  }, [activeTab, onRefresh]);
+
+  // Real-time synchronization when admin window regains focus or periodically
+  useEffect(() => {
+    onRefresh?.();
+
+    const handleFocus = () => {
+      onRefresh?.();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [onRefresh]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -466,7 +482,8 @@ export function DashboardPage({
       delete itemWithoutId.id;
       const newItemData = {
         ...itemWithoutId,
-        title: `${item.title} (نسخة)`,
+        ...(item.title ? { title: `${item.title} (نسخة)` } : {}),
+        ...(item.name ? { name: `${item.name} (نسخة)` } : {}),
       };
       await apiMethod(newItemData);
       if (onRefresh) await onRefresh();
@@ -481,6 +498,8 @@ export function DashboardPage({
     handleDuplicateItem(offer, apiService.addOffer, "العرض");
   const handleDuplicateVisa = (visa: any) =>
     handleDuplicateItem(visa, apiService.addVisa, "التأشيرة");
+  const handleDuplicateDestination = (dest: any) =>
+    handleDuplicateItem(dest, apiService.addDestination, "الوجهة");
 
   const pendingBookingsCount = useMemo(() => {
     return bookings.filter((b) => b.status === "قيد الانتظار").length;
@@ -955,6 +974,7 @@ export function DashboardPage({
                       filteredDestinations={filteredDestinations}
                       searchQuery={searchQuery}
                       handleMoveItem={handleMoveItem}
+                      handleDuplicateDestination={handleDuplicateDestination}
                       setEditingItem={setEditingItem}
                       setIsModalOpen={setIsModalOpen}
                       handleDeleteDestination={handleDeleteDestination}

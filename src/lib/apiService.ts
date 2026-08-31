@@ -272,8 +272,8 @@ export const apiService = {
 
   // Bookings
   async getBookings() {
-    const data = await fetchApi("/api/bookings");
-    return (data || []).map((item: any) => ({
+    const data = await fetchApi(`/api/bookings?_t=${Date.now()}`);
+    return (data || []).filter(Boolean).map((item: any) => ({
       ...item,
       id: String(item.id),
       documents: parseStringArray(item.documents),
@@ -284,7 +284,15 @@ export const apiService = {
       method: "POST",
       body: JSON.stringify(booking),
     });
-    return data[0] as Booking;
+    const item = Array.isArray(data) ? data[0] : data;
+    if (!item) {
+      throw new Error("لم يتم استلام تأكيد حفظ الحجز من الخادم.");
+    }
+    return {
+      ...item,
+      id: String(item.id),
+      documents: parseStringArray(item.documents),
+    } as Booking;
   },
   async getBooking(id: string | number) {
     const data = await fetchApi(`/api/bookings/${id}`);

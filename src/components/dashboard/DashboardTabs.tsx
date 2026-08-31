@@ -557,6 +557,7 @@ export const DestinationsTab = React.memo(function DestinationsTab(props: any) {
       items={props.filteredDestinations}
       itemType="destinations"
       title="قائمة الوجهات"
+      handleDuplicateItem={props.handleDuplicateDestination}
       handleDeleteItem={props.handleDeleteDestination}
     />
   );
@@ -750,7 +751,7 @@ export const SettingsTab = React.memo(function SettingsTab({
               onClick={() => {
                 const newId =
                   localSocialLinks.length > 0
-                    ? Math.max(...localSocialLinks.map((l: any) => l.id)) + 1
+                    ? Math.max(0, ...localSocialLinks.map((l: any) => Number(l.id) || 0)) + 1
                     : 1;
                 setLocalSocialLinks([
                   ...localSocialLinks,

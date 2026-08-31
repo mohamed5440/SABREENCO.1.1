@@ -271,7 +271,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
         service: serviceNameMap[serviceType] || serviceType,
         serviceType: serviceType,
         date: new Date().toISOString().split("T")[0],
-        status: "pending",
+        status: "قيد الانتظار",
         details: securityUtils.sanitizeString(
           formData.notes ? `${details}\n\nملاحظات: ${formData.notes}` : details,
         ),

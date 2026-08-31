@@ -58,6 +58,17 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const handlePrefetch = (id: string) => {
+    if (id === "flights") import("../../pages/FlightsPage").catch(() => {});
+    else if (id === "hotels") import("../../pages/HotelsPage").catch(() => {});
+    else if (id === "destinations") import("../../pages/DestinationsPage").catch(() => {});
+    else if (id === "offers") import("../../pages/OffersPage").catch(() => {});
+    else if (id === "visa") import("../../pages/VisaPage").catch(() => {});
+    else if (id === "contact") import("../../pages/ContactPage").catch(() => {});
+    else if (id === "about") import("../../pages/AboutPage").catch(() => {});
+    else if (id === "dashboard") import("../../pages/DashboardPage").catch(() => {});
+  };
+
   const navLinks = [
     { name: "الرئيسية", id: "home", icon: Home },
     { name: "الطيران", id: "flights", icon: Plane },
@@ -103,6 +114,8 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 key={link.id}
                 onClick={() => onNavigate(link.id)}
+                onMouseEnter={() => handlePrefetch(link.id)}
+                onFocus={() => handlePrefetch(link.id)}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 whitespace-nowrap ${
                   currentPage === link.id
                     ? "bg-primary-light text-primary"
@@ -118,6 +131,8 @@ export const Header: React.FC<HeaderProps> = ({
             {isLoggedIn && (
               <button
                 onClick={() => onNavigate("dashboard")}
+                onMouseEnter={() => handlePrefetch("dashboard")}
+                onFocus={() => handlePrefetch("dashboard")}
                 className="hidden lg:flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-primary text-white hover:bg-primary-hover active:scale-95 whitespace-nowrap shrink-0"
               >
                 <LayoutGrid size={18} />

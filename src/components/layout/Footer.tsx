@@ -317,6 +317,7 @@ export const Footer: React.FC<FooterProps> = ({
                 },
                 { icon: <Link size={18} />, label: "لينك دفع" },
                 { icon: <CreditCard size={18} />, label: "ماكينة فيزا (POS)" },
+                { icon: <Smartphone size={18} />, label: "متاح التقسيط مع فاليو" },
               ].map((method, i) => (
                 <li key={i} className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">

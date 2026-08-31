@@ -260,9 +260,6 @@ export function matchesBooking(booking: any, terms: string[]): boolean {
     booking.details,
     booking.preferredContact,
     booking.preferredContactTime,
-    booking.passportImage,
-    booking.personalPhoto,
-    Array.isArray(booking.documents) ? booking.documents.join(" ") : booking.documents,
   ]
     .map((val) => (val ? String(val) : ""))
     .join(" ");

@@ -78,16 +78,16 @@ async function startServer() {
   });
 
   const bookingLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 5, // 5 bookings per hour per IP
-    message: { error: { message: "لقد تجاوزت الحد الأقصى للحجوزات خلال ساعة واحدة. يرجى المحاولة لاحقاً أو التواصل معنا مباشرة." } }
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Generous limit per windowMs
+    message: { error: { message: "لقد تم إرسال عدة طلبات مؤخراً. يرجى الانتظار قليلاً أو التواصل معنا مباشرة." } }
   });
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
   app.use('/api', apiLimiter);
 
-  // Initialize MySQL pool with optimized settings
+  // Initialize MySQL pool with ultra-optimized connection settings
   const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -99,7 +99,7 @@ async function startServer() {
     maxIdle: 30, // Keep idle connections alive to prevent handshake latency
     idleTimeout: 60000, // Close idle connections after 60 seconds of inactivity
     queueLimit: 0,
-    connectTimeout: 10000, // 10 seconds connection timeout
+    connectTimeout: 2500, // Fast 2.5 seconds connection timeout to avoid hanging
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
     charset: 'utf8mb4_unicode_ci', // Force optimized collation and charset
@@ -108,6 +108,16 @@ async function startServer() {
     compress: true // Enable packet compression to reduce network overhead over cloud database connections
   });
 
+  // Fast Async Timeout Wrapper to prevent hanging queries or connections
+  const withTimeout = <T>(promise: Promise<T>, ms: number = 15000): Promise<T> => {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('DB_TIMEOUT')), ms);
+      promise
+        .then(res => { clearTimeout(timer); resolve(res); })
+        .catch(err => { clearTimeout(timer); reject(err); });
+    });
+  };
+
   // Database initialization
   async function initDb() {
     let connection;
@@ -115,7 +125,7 @@ async function startServer() {
       if (!process.env.DB_HOST) {
         throw new Error('DB_HOST not set, skipping MySQL connection');
       }
-      connection = await pool.getConnection();
+      connection = await withTimeout(pool.getConnection(), 15000);
       console.log('Connected to MySQL successfully.');
 
       // Migration helpers
@@ -653,7 +663,7 @@ async function startServer() {
       return sorted;
     }
 
-    if (s.startsWith('select * from bookings where id=')) {
+    if (s.includes('from bookings where id=') || s.includes('from bookings where id =') || s.includes('from bookings where id = ?') || s.includes('from bookings where id=?')) {
       const id = String(params[0]);
       return localDb.bookings.filter(b => String(b.id) === id);
     }
@@ -966,57 +976,54 @@ async function startServer() {
 
   app.get('/api/health', (req, res) => res.json({ status: "ok" }));
 
-  // --- Auto-recovery & Health Check for Transient DB Connection Losses ---
-  let lastDbCheck = 0;
-  const checkDbHealth = async () => {
-    if (!useLocalFallback) return true;
-    if (!process.env.DB_HOST) return false;
-    const now = Date.now();
-    if (now - lastDbCheck > 30000) { // check database health every 30 seconds
-      lastDbCheck = now;
+  // --- Background Non-Blocking Auto-recovery for MySQL DB ---
+  let isCheckingHealth = false;
+  const startBackgroundDbHealthCheck = () => {
+    setInterval(async () => {
+      if (!useLocalFallback || !process.env.DB_HOST || isCheckingHealth) return;
+      isCheckingHealth = true;
       try {
-        const connection = await pool.getConnection();
-        await connection.query('SELECT 1');
+        const connPromise = pool.getConnection();
+        const connection = await withTimeout(connPromise, 15000);
+        await withTimeout(connection.query('SELECT 1'), 5000);
         connection.release();
         console.log('MySQL connection automatically recovered. Switching back to MySQL database.');
         useLocalFallback = false;
-        return true;
       } catch {
-        // Silently stay on local fallback if MySQL is still down
+        // Silently stay on local fallback if MySQL is still unresponsive
+      } finally {
+        isCheckingHealth = false;
       }
-    }
-    return false;
+    }, 60000);
   };
+  startBackgroundDbHealthCheck();
 
-  // Generic Query Helper
+  // Generic Fast Query Helper (Ultra-fast with 15s safety timeout and instant in-memory fallback)
   const q = async (sql: string, params: any[] = []) => {
-    await checkDbHealth();
     if (useLocalFallback) {
       return await localQuery(sql, params);
     }
     try {
-      const [rows] = await pool.execute(sql, params);
-      return rows;
+      const rows = await withTimeout(pool.execute(sql, params), 15000) as [any, any];
+      return rows[0];
     } catch (e: any) {
-      console.warn("MySQL Query failed, using local fallback. Error:", e?.message || e);
+      console.warn("MySQL Query failed or timed out, switching to instant local fallback. Error:", e?.message || e);
       useLocalFallback = true;
-      lastDbCheck = Date.now();
       await initLocalDb();
       return await localQuery(sql, params);
     }
   };
+
   const exec = async (sql: string, params: any[] = []) => {
-    await checkDbHealth();
     if (useLocalFallback) {
       return await localExecute(sql, params);
     }
     try {
-      const [result] = await pool.execute(sql, params);
-      return result;
+      const result = await withTimeout(pool.execute(sql, params), 15000) as [any, any];
+      return result[0];
     } catch (e: any) {
-      console.warn("MySQL Execute failed, using local fallback. Error:", e?.message || e);
+      console.warn("MySQL Execute failed or timed out, switching to instant local fallback. Error:", e?.message || e);
       useLocalFallback = true;
-      lastDbCheck = Date.now();
       await initLocalDb();
       return await localExecute(sql, params);
     }
@@ -1113,8 +1120,6 @@ async function startServer() {
       const allowedTables = ['offers', 'visas', 'destinations'];
       if (!allowedTables.includes(table)) return res.status(400).json({ error: 'Invalid table' });
       if (!items || !Array.isArray(items)) return res.status(400).json({ error: 'Items must be an array' });
-      
-      await checkDbHealth();
       
       if (useLocalFallback) {
         for (const item of items) {
@@ -1288,12 +1293,18 @@ async function startServer() {
 
   // --- Bookings ---
   app.get('/api/bookings', authenticateToken, async (req, res) => {
-    await handleCachedGet(req, res, 'bookings_list', () =>
-      q('SELECT id, user_id, name, phone, email, passportNumber, service, serviceType, date, status, amount, details, preferredContact, preferredContactTime, created_at FROM bookings ORDER BY created_at DESC')
-    );
+    try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      const rows: any = await q('SELECT id, user_id, name, phone, email, passportNumber, service, serviceType, date, status, amount, details, preferredContact, preferredContactTime, created_at FROM bookings ORDER BY id DESC, created_at DESC');
+      res.json(rows || []);
+    } catch (e: any) {
+      console.error("Get bookings error:", e);
+      res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } });
+    }
   });
   app.get('/api/bookings/:id', authenticateToken, async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
       const rows: any = await q('SELECT * FROM bookings WHERE id=?', [req.params.id]);
       if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
       res.json(rows[0]);
@@ -1335,7 +1346,7 @@ async function startServer() {
         return res.status(400).json({ error: { message: "التاريخ طويل جداً" } });
       }
       
-      // Image size validation (roughly limit to 7MB base64) to prevent DB exhaustion DoS
+      // Image size validation (roughly limit to 8MB base64) to prevent DB exhaustion DoS
       let documentsLength = 0;
       if (Array.isArray(p.documents)) {
         documentsLength = p.documents.reduce((acc: number, doc: string) => acc + (doc ? doc.length : 0), 0);
@@ -1357,12 +1368,33 @@ async function startServer() {
         [userId, p.name||null, p.phone||null, p.email||null, p.passportNumber||null, p.service||null, p.serviceType||null, p.date||null, 'قيد الانتظار', null, p.details||null, p.passportImage||null, p.personalPhoto||null, JSON.stringify(p.documents||[]), p.preferredContact||null, p.preferredContactTime||null]
       );
       
-      const [newBooking]: any = await q('SELECT * FROM bookings WHERE id = ?', [result.insertId]);
+      const rows: any = await q('SELECT * FROM bookings WHERE id = ?', [result.insertId]);
+      const newBooking = (rows && rows.length > 0) ? rows[0] : {
+        id: result.insertId,
+        user_id: userId,
+        name: p.name || null,
+        phone: p.phone || null,
+        email: p.email || null,
+        passportNumber: p.passportNumber || null,
+        service: p.service || null,
+        serviceType: p.serviceType || null,
+        date: p.date || new Date().toISOString().split('T')[0],
+        status: 'قيد الانتظار',
+        amount: null,
+        details: p.details || null,
+        passportImage: p.passportImage || null,
+        personalPhoto: p.personalPhoto || null,
+        documents: JSON.stringify(p.documents || []),
+        preferredContact: p.preferredContact || null,
+        preferredContactTime: p.preferredContactTime || null,
+        created_at: new Date().toISOString()
+      };
+      
       clearCache('bookings_list');
       res.json([newBooking]);
     } catch (e: any) { 
-      console.error(e); 
-      res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); 
+      console.error("Create booking error:", e); 
+      res.status(500).json({ error: { message: "حدث خطأ داخلي أثناء حفظ الحجز." } }); 
     }
   });
   app.put('/api/bookings/:id', authenticateToken, async (req, res) => {
@@ -1422,8 +1454,6 @@ async function startServer() {
       if (!links || !Array.isArray(links)) {
         return res.status(400).json({ error: { message: "الروابط يجب أن تكون مصفوفة صالحة" } });
       }
-      
-      await checkDbHealth();
       
       if (useLocalFallback) {
         await localExecute('DELETE FROM social_links WHERE id != 0');

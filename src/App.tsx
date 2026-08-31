@@ -509,12 +509,17 @@ export default function App() {
                     socialLinks={siteData.socialLinks}
                     showAppToast={showAppToast}
                     onNavigate={handleNavigate}
-                    onAddBooking={(booking: any) =>
-                      setSiteData((prev) => ({
-                        ...prev,
-                        bookings: [booking, ...prev.bookings],
-                      }))
-                    }
+                    onAddBooking={(booking: any) => {
+                      if (!booking) return;
+                      setSiteData((prev) => {
+                        const exists = prev.bookings.some((b: any) => String(b.id) === String(booking.id));
+                        if (exists) return prev;
+                        return {
+                          ...prev,
+                          bookings: [booking, ...prev.bookings],
+                        };
+                      });
+                    }}
                     currentUser={currentUser}
                   />
                 )}
