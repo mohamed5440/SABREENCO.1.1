@@ -21,10 +21,9 @@ export const OfferCard: React.FC<OfferCardProps> = React.memo(({
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-50px" }}
-        transition={{ delay: idx * 0.1, duration: 0.6 }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
         className="group bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 hover:border-primary/20 flex flex-col h-full cursor-pointer text-right"
         onClick={() => onViewDetails(offer)}
         dir="rtl"

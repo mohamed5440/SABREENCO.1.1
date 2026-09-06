@@ -15,6 +15,7 @@ import {
   Tag,
   Settings,
   HelpCircle,
+  Loader2,
 } from "lucide-react";
 import { WhatsAppIcon } from "../ui";
 import { FeatureListEditor, ImageUploader, BookingStatusSelect } from "./DashboardShared";
@@ -396,6 +397,7 @@ interface ItemFormModalProps {
   setFormData: React.Dispatch<React.SetStateAction<any>>;
   handleSave: (e: React.FormEvent) => Promise<void>;
   showToast: (message: string, type?: "success" | "error") => void;
+  isSaving?: boolean;
 }
 
 export const ItemFormModal = React.memo(function ItemFormModal({
@@ -408,8 +410,10 @@ export const ItemFormModal = React.memo(function ItemFormModal({
   setFormData,
   handleSave,
   showToast,
+  isSaving = false,
 }: ItemFormModalProps) {
   const [featureInput, setFeatureInput] = useState("");
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
 
   const handleAddItem = (
     fieldName: "features",
@@ -458,11 +462,15 @@ export const ItemFormModal = React.memo(function ItemFormModal({
         return;
       }
       try {
-        const compressedBase64 = await compressImage(file, 1200);
-        setFormData({ ...formData, image: compressedBase64 });
+        setIsCompressingImage(true);
+        const compressedBase64 = await compressImage(file, 1000);
+        setFormData((prev: any) => ({ ...prev, image: compressedBase64 }));
+        showToast("تم تحسين الصورة بنجاح");
       } catch (error) {
         console.error("Error compressing image:", error);
         showToast("حدث خطأ أثناء معالجة الصورة", "error");
+      } finally {
+        setIsCompressingImage(false);
       }
     }
   };
@@ -994,10 +1002,27 @@ export const ItemFormModal = React.memo(function ItemFormModal({
                   <button
                     type="submit"
                     form="itemForm"
-                    className="w-full bg-primary hover:bg-primary-hover text-white py-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm cursor-pointer"
+                    disabled={isSaving || isCompressingImage}
+                    className={`w-full bg-primary hover:bg-primary-hover text-white py-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm cursor-pointer ${
+                      isSaving || isCompressingImage ? "opacity-75 cursor-not-allowed" : ""
+                    }`}
                   >
-                    {editingItem ? <Edit size={14} /> : <Plus size={14} />}
-                    <span>{editingItem ? "حفظ وتعديل البيانات" : "إضافة ونشر العنصر الجديد"}</span>
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>{editingItem ? "جاري حفظ التعديلات..." : "جاري النشر والإضافة الآن..."}</span>
+                      </>
+                    ) : isCompressingImage ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>جاري معالجة الصورة...</span>
+                      </>
+                    ) : (
+                      <>
+                        {editingItem ? <Edit size={14} /> : <Plus size={14} />}
+                        <span>{editingItem ? "حفظ وتعديل البيانات" : "إضافة ونشر العنصر الجديد"}</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

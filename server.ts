@@ -74,7 +74,7 @@ async function startServer() {
 
   const apiLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 100 // 100 requests per minute
+    max: 300 // 300 requests per minute to support seamless real-time synchronization
   });
 
   const bookingLimiter = rateLimit({
@@ -99,7 +99,7 @@ async function startServer() {
     maxIdle: 30, // Keep idle connections alive to prevent handshake latency
     idleTimeout: 60000, // Close idle connections after 60 seconds of inactivity
     queueLimit: 0,
-    connectTimeout: 2500, // Fast 2.5 seconds connection timeout to avoid hanging
+    connectTimeout: 15000, // 15 seconds connection timeout for high-reliability cloud database connections
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
     charset: 'utf8mb4_unicode_ci', // Force optimized collation and charset
@@ -1004,7 +1004,7 @@ async function startServer() {
       return await localQuery(sql, params);
     }
     try {
-      const rows = await withTimeout(pool.execute(sql, params), 15000) as [any, any];
+      const rows = await withTimeout(pool.query(sql, params), 15000) as [any, any];
       return rows[0];
     } catch (e: any) {
       console.warn("MySQL Query failed or timed out, switching to instant local fallback. Error:", e?.message || e);
@@ -1019,7 +1019,7 @@ async function startServer() {
       return await localExecute(sql, params);
     }
     try {
-      const result = await withTimeout(pool.execute(sql, params), 15000) as [any, any];
+      const result = await withTimeout(pool.query(sql, params), 15000) as [any, any];
       return result[0];
     } catch (e: any) {
       console.warn("MySQL Execute failed or timed out, switching to instant local fallback. Error:", e?.message || e);
@@ -1029,9 +1029,24 @@ async function startServer() {
     }
   };
 
-  // --- Cache Helper ---
+  // --- Cache & Real-Time Synchronization Helper ---
+  let dataVersion = Date.now();
   const cache: Record<string, { data: any, expiry: number }> = {};
-  const CACHE_TTL = 3600000; // 1 hour (highly optimized as admin actions clear the cache)
+  const CACHE_TTL = 3600000; // 1 hour (cleared instantly upon any database modification)
+
+  // Real-Time SSE Clients set for sub-second zero-latency push notifications
+  const sseClients = new Set<express.Response>();
+
+  const broadcastRealtimeEvent = (payload: { type: string; table?: string; version: number }) => {
+    const message = `data: ${JSON.stringify(payload)}\n\n`;
+    for (const client of sseClients) {
+      try {
+        client.write(message);
+      } catch {
+        sseClients.delete(client);
+      }
+    }
+  };
   
   const getCached = (key: string) => {
     const item = cache[key];
@@ -1043,14 +1058,12 @@ async function startServer() {
     cache[key] = { data, expiry: Date.now() + CACHE_TTL };
   };
   
-  const clearCache = (keyPrefix?: string) => {
-    if (!keyPrefix) {
-      Object.keys(cache).forEach(k => delete cache[k]);
-    } else {
-      Object.keys(cache).forEach(k => { 
-        if (k.startsWith(keyPrefix)) delete cache[k]; 
-      });
-    }
+  const clearCache = (table?: string) => {
+    dataVersion = Date.now();
+    // Complete wipe to ensure absolute freshness
+    Object.keys(cache).forEach(k => delete cache[k]);
+    // Instant real-time push to all connected visitors and admin dashboards
+    broadcastRealtimeEvent({ type: 'update', table: table || 'all', version: dataVersion });
   };
 
   const getOrSetCache = async <T>(key: string, queryFn: () => Promise<T>): Promise<T> => {
@@ -1061,15 +1074,48 @@ async function startServer() {
     return data;
   };
 
-  // Reusable High-Performance Cache/Authorization GET Helper
+  // Ultra-fast Real-Time version check (takes < 1ms, zero DB load)
+  app.get('/api/version', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.json({ version: dataVersion });
+  });
+
+  // Real-Time Server-Sent Events (SSE) stream for instant sub-second synchronization
+  app.get('/api/realtime/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    // Initial handshake
+    res.write(`data: ${JSON.stringify({ type: 'connected', version: dataVersion })}\n\n`);
+
+    sseClients.add(res);
+
+    const pingInterval = setInterval(() => {
+      try {
+        res.write(': ping\n\n');
+      } catch {
+        clearInterval(pingInterval);
+        sseClients.delete(res);
+      }
+    }, 25000);
+
+    req.on('close', () => {
+      clearInterval(pingInterval);
+      sseClients.delete(res);
+    });
+  });
+
+  // Reusable Real-Time Cache/Authorization GET Helper
   const handleCachedGet = async (req: express.Request, res: Response, cacheKey: string, dbQuery: () => Promise<any>) => {
     try {
-      const isAuthorized = !!req.headers['authorization'];
-      if (isAuthorized) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-      } else {
-        res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=600');
-      }
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       
       const data = await getOrSetCache(cacheKey, dbQuery);
       res.json(data);
@@ -1079,15 +1125,12 @@ async function startServer() {
     }
   };
 
-  // --- Initial Data Load (Optimized via multi-key cache composition) ---
+  // --- Initial Data Load (Instant Real-time with no-cache headers) ---
   app.get('/api/init', async (req, res) => {
     try {
-      const isAuthorized = !!req.headers['authorization'];
-      if (isAuthorized) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-      } else {
-        res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=600');
-      }
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
 
       const [offers, destinations, visas, socialLinks, contactInfo] = await Promise.all([
         getOrSetCache('offers', () => q('SELECT * FROM offers ORDER BY sort_order ASC, id DESC')),
@@ -1105,7 +1148,8 @@ async function startServer() {
         destinations: destinations || [],
         visas: visas || [],
         socialLinks: socialLinks || [],
-        contactInfo: contactInfo || null
+        contactInfo: contactInfo || null,
+        version: dataVersion
       });
     } catch (e: any) {
       console.error("Init API error:", e);
@@ -1145,7 +1189,7 @@ async function startServer() {
         }
       }
       
-      clearCache(table);
+      clearCache();
       res.json({ success: true });
     } catch (e: any) { 
       console.error(e); 
@@ -1170,7 +1214,7 @@ async function startServer() {
         'INSERT INTO offers (title, description, descriptionTitle, destination, image, badgeText, urgencyText, price, oldPrice, currency, duration, status, features, notIncluded, category) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [p.title||null, p.description||null, p.descriptionTitle||null, p.destination||null, p.image||null, p.badgeText||null, p.urgencyText||null, p.price||null, p.oldPrice||null, p.currency||null, p.duration||null, p.status||'نشط', JSON.stringify(p.features||[]), JSON.stringify(p.notIncluded||[]), p.category||null]
       );
-      clearCache('offers');
+      clearCache();
       res.json([{ id: result.insertId, ...p, status: p.status||'نشط' }]);
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
@@ -1187,14 +1231,14 @@ async function startServer() {
         'UPDATE offers SET title=?, description=?, descriptionTitle=?, destination=?, image=?, badgeText=?, urgencyText=?, price=?, oldPrice=?, currency=?, duration=?, status=?, features=?, notIncluded=?, category=? WHERE id=?',
         [p.title||null, p.description||null, p.descriptionTitle||null, p.destination||null, p.image||null, p.badgeText||null, p.urgencyText||null, p.price||null, p.oldPrice||null, p.currency||null, p.duration||null, p.status||null, JSON.stringify(p.features||[]), JSON.stringify(p.notIncluded||[]), p.category||null, req.params.id]
       );
-      clearCache('offers');
+      clearCache();
       res.json([{ id: req.params.id, ...p }]);
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
   app.delete('/api/offers/:id', authenticateToken, async (req, res) => {
     try {
       await exec('DELETE FROM offers WHERE id=?', [req.params.id]);
-      clearCache('offers');
+      clearCache();
       res.json({ success: true });
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
@@ -1216,7 +1260,7 @@ async function startServer() {
         'INSERT INTO visas (title, description, descriptionTitle, image, price, currency, status, processingTime, duration, features) VALUES (?,?,?,?,?,?,?,?,?,?)',
         [p.title||null, p.description||null, p.descriptionTitle||null, p.image||null, p.price||null, p.currency||null, p.status||'نشط', p.processingTime||null, p.duration||null, JSON.stringify(p.features||[])]
       );
-      clearCache('visas');
+      clearCache();
       res.json([{ id: result.insertId, ...p, status: p.status||'نشط' }]);
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
@@ -1233,14 +1277,14 @@ async function startServer() {
         'UPDATE visas SET title=?, description=?, descriptionTitle=?, image=?, price=?, currency=?, status=?, processingTime=?, duration=?, features=? WHERE id=?',
         [p.title||null, p.description||null, p.descriptionTitle||null, p.image||null, p.price||null, p.currency||null, p.status||null, p.processingTime||null, p.duration||null, JSON.stringify(p.features||[]), req.params.id]
       );
-      clearCache('visas');
+      clearCache();
       res.json([{ id: req.params.id, ...p }]);
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
   app.delete('/api/visas/:id', authenticateToken, async (req, res) => {
     try {
       await exec('DELETE FROM visas WHERE id=?', [req.params.id]);
-      clearCache('visas');
+      clearCache();
       res.json({ success: true });
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
@@ -1262,7 +1306,7 @@ async function startServer() {
         'INSERT INTO destinations (name, description, image, category) VALUES (?,?,?,?)',
         [p.name||null, p.description||null, p.image||null, p.category||null]
       );
-      clearCache('destinations');
+      clearCache();
       res.json([{ id: result.insertId, ...p }]);
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
@@ -1279,14 +1323,14 @@ async function startServer() {
         'UPDATE destinations SET name=?, description=?, image=?, category=? WHERE id=?',
         [p.name||null, p.description||null, p.image||null, p.category||null, req.params.id]
       );
-      clearCache('destinations');
+      clearCache();
       res.json([{ id: req.params.id, ...p }]);
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
   app.delete('/api/destinations/:id', authenticateToken, async (req, res) => {
     try {
       await exec('DELETE FROM destinations WHERE id=?', [req.params.id]);
-      clearCache('destinations');
+      clearCache();
       res.json({ success: true });
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });
@@ -1491,7 +1535,7 @@ async function startServer() {
         }
       }
       
-      clearCache('social_links');
+      clearCache();
       res.json({ success: true });
     } catch (e: any) { 
       console.error(e); 
@@ -1513,7 +1557,7 @@ async function startServer() {
         'UPDATE contact_info SET phones=?, email=?, address=?, addressUrl=? WHERE id=1',
         [JSON.stringify(p.phones||[]), p.email||null, p.address||null, p.addressUrl||null]
       );
-      clearCache('contact_info');
+      clearCache();
       res.json([{ id: 1, ...p }]);
     } catch (e: any) { console.error(e); res.status(500).json({ error: { message: "حدث خطأ داخلي في الخادم." } }); }
   });

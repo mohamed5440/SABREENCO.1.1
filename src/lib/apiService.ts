@@ -2,7 +2,7 @@ import { Offer, Visa, Destination, Booking } from "../types";
 import { parseStringArray } from "./utils";
 
 // Constants
-const CACHE_TTL = 300000; // 5 minutes
+const CACHE_TTL = 15000; // 15 seconds (ensures ultra-fast real-time freshness)
 
 const inFlightRequests = new Map<string, Promise<any>>();
 
@@ -20,15 +20,9 @@ function setCachedData(key: string, data: any) {
   (globalThis as any)._apiCache[key] = { data, timestamp };
 }
 
-function clearCache(key?: string) {
-  if (key) {
-    if ((globalThis as any)._apiCache) {
-      delete (globalThis as any)._apiCache[key];
-      delete (globalThis as any)._apiCache["init_data"]; // Always clear init_data when anything changes
-    }
-  } else {
-    (globalThis as any)._apiCache = {};
-  }
+function clearCache(_key?: string) {
+  // Always clear all memory cache so state updates immediately and globally
+  (globalThis as any)._apiCache = {};
   inFlightRequests.clear();
 }
 
@@ -105,6 +99,63 @@ export const apiService = {
     } else {
       localStorage.removeItem("sabreen_token");
     }
+  },
+  // Check real-time data version (ultra-lightweight, zero DB load)
+  async checkVersion(): Promise<number> {
+    try {
+      const data = await fetchApi(`/api/version?_t=${Date.now()}`);
+      return data?.version || 0;
+    } catch {
+      return 0;
+    }
+  },
+  // Real-time EventSource connection for sub-second zero-latency synchronization
+  subscribeToRealtime(
+    onUpdate: (data: { type: string; table?: string; version: number }) => void,
+  ): () => void {
+    let es: EventSource | null = null;
+    let reconnectTimeout: any = null;
+    let isCancelled = false;
+
+    const connect = () => {
+      if (isCancelled) return;
+      try {
+        es = new EventSource("/api/realtime/stream");
+        es.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data && data.version) {
+              onUpdate(data);
+            }
+          } catch {
+            // ignore
+          }
+        };
+        es.onerror = () => {
+          if (es) {
+            es.close();
+            es = null;
+          }
+          if (!isCancelled) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = setTimeout(connect, 3000);
+          }
+        };
+      } catch {
+        // fallback
+      }
+    };
+
+    connect();
+
+    return () => {
+      isCancelled = true;
+      if (es) {
+        es.close();
+        es = null;
+      }
+      clearTimeout(reconnectTimeout);
+    };
   },
   // Init Data (Optimized)
   async getInitData(force = false) {
@@ -284,6 +335,7 @@ export const apiService = {
       method: "POST",
       body: JSON.stringify(booking),
     });
+    clearCache("bookings");
     const item = Array.isArray(data) ? data[0] : data;
     if (!item) {
       throw new Error("لم يتم استلام تأكيد حفظ الحجز من الخادم.");
@@ -309,6 +361,7 @@ export const apiService = {
       method: "PUT",
       body: JSON.stringify(bookingData),
     });
+    clearCache("bookings");
     return data[0] as Booking;
   },
   async updateBookingStatus(id: string | number, status: string) {
@@ -316,10 +369,12 @@ export const apiService = {
       method: "PUT",
       body: JSON.stringify({ status }),
     });
+    clearCache("bookings");
     return data[0] as Booking;
   },
   async deleteBooking(id: string | number) {
     await fetchApi(`/api/bookings/${id}`, { method: "DELETE" });
+    clearCache("bookings");
   },
 
   // Social Links

@@ -505,18 +505,14 @@ export function DashboardPage({
     return bookings.filter((b) => b.status === "قيد الانتظار").length;
   }, [bookings]);
 
-  //   if (activeTab === 'offers') {
-  //     if (!formData.image) {
-  //       showToast('يرجى إضافة صورة للعرض', 'error');
-  //       return;
-  //     }
-  //     ...
-  //   }
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
 
     try {
+      setIsSaving(true);
       if (activeTab === "offers") {
         if (!formData.title) {
           showToast("يرجى إدخال عنوان العرض", "error");
@@ -536,7 +532,7 @@ export function DashboardPage({
           showToast("تم تحديث العرض بنجاح");
         } else {
           await apiService.addOffer({ ...offerData, id: Date.now() });
-          showToast("تمت إضافة العرض بنجاح");
+          showToast("تمت إضافة ونشر العرض بنجاح");
         }
       } else if (activeTab === "destinations") {
         if (!formData.name) {
@@ -582,13 +578,15 @@ export function DashboardPage({
           showToast("تمت إضافة التأشيرة بنجاح");
         }
       }
-      if (onRefresh) await onRefresh();
       setIsModalOpen(false);
       setEditingItem(null);
       setFormData({});
+      if (onRefresh) onRefresh();
     } catch (error: any) {
       console.error("Error saving item:", error);
       showToast(`حدث خطأ أثناء الحفظ: ${error.message || ""}`, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1023,6 +1021,7 @@ export function DashboardPage({
         setFormData={setFormData}
         handleSave={handleSave}
         showToast={showToast}
+        isSaving={isSaving}
       />
 
       {/* Confirm Modal */}

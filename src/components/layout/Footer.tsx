@@ -307,7 +307,7 @@ export const Footer: React.FC<FooterProps> = ({
               <div className="accent-line"></div>
               طرق الدفع
             </h3>
-            <ul className="grid grid-cols-1 sm:grid-cols-1 gap-y-3.5 gap-x-4 w-full">
+            <ul className="grid grid-cols-1 gap-y-3 w-full">
               {[
                 { icon: <Banknote size={18} />, label: "الدفع كاش" },
                 { icon: <Landmark size={18} />, label: "التحويل البنكي" },
@@ -315,12 +315,15 @@ export const Footer: React.FC<FooterProps> = ({
                   icon: <Smartphone size={18} />,
                   label: "إنستاباي (InstaPay)",
                 },
-                { icon: <Link size={18} />, label: "لينك دفع" },
+                { icon: <Link size={18} />, label: "لينك دفع إلكتروني" },
                 { icon: <CreditCard size={18} />, label: "ماكينة فيزا (POS)" },
-                { icon: <Smartphone size={18} />, label: "متاح التقسيط مع فاليو" },
+                { icon: <CreditCard size={18} />, label: "متاح التقسيط" },
               ].map((method, i) => (
-                <li key={i} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                <li
+                  key={i}
+                  className="flex items-center gap-3"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     {method.icon}
                   </div>
                   <span className="text-sm font-medium text-gray-800">

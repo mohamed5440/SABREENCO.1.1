@@ -99,7 +99,7 @@ export function getWhatsAppBookingUrl(offer: {
 
 export async function compressImage(
   file: File,
-  maxWidth = 1200,
+  maxWidth = 1000,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -126,8 +126,11 @@ export async function compressImage(
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        // Compress as WEBP for smaller size, fallback to JPEG
-        const dataUrl = canvas.toDataURL("image/webp", 0.7);
+        // Compress as WEBP for maximum speed and small payload, fallback to JPEG
+        let dataUrl = canvas.toDataURL("image/webp", 0.75);
+        if (!dataUrl.startsWith("data:image/webp")) {
+          dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+        }
         resolve(dataUrl);
       };
       img.onerror = (error) => reject(error);
