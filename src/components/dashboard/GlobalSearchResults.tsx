@@ -125,7 +125,7 @@ export function GlobalSearchResults({
               </div>
 
               <div className="divide-y divide-gray-100">
-                {filteredBookings.map((booking) => (
+                {filteredBookings.slice(0, 15).map((booking) => (
                   <div key={booking.id} className="p-4 hover:bg-white/40 transition-colors flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -202,7 +202,7 @@ export function GlobalSearchResults({
               </div>
 
               <div className="divide-y divide-gray-100">
-                {filteredOffers.map((offer) => (
+                {filteredOffers.slice(0, 15).map((offer) => (
                   <div key={offer.id} className="p-4 hover:bg-white/40 transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-10 h-10 rounded-xl overflow-hidden bg-white border border-gray-100 shrink-0">
@@ -290,7 +290,7 @@ export function GlobalSearchResults({
               </div>
 
               <div className="divide-y divide-gray-100">
-                {filteredVisas.map((visa) => (
+                {filteredVisas.slice(0, 15).map((visa) => (
                   <div key={visa.id} className="p-4 hover:bg-white/40 transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-8 h-8 rounded-xl bg-white border border-gray-100 shrink-0 flex items-center justify-center text-primary/75">
@@ -363,7 +363,7 @@ export function GlobalSearchResults({
               </div>
 
               <div className="divide-y divide-gray-100">
-                {filteredDestinations.map((dest) => (
+                {filteredDestinations.slice(0, 15).map((dest) => (
                   <div key={dest.id} className="p-4 hover:bg-white/40 transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-10 h-10 rounded-xl overflow-hidden bg-white border border-gray-100 shrink-0">
@@ -443,7 +443,7 @@ export function GlobalSearchResults({
               </div>
 
               <div className="divide-y divide-gray-100">
-                {filteredSubscribers.map((sub) => (
+                {filteredSubscribers.slice(0, 15).map((sub) => (
                   <div key={sub.id} className="p-4 hover:bg-white/40 transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-8 h-8 rounded-full bg-primary/5 text-primary flex items-center justify-center font-bold shrink-0">

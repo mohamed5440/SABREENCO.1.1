@@ -73,6 +73,7 @@ export function DashboardPage({
   onRefresh?: () => Promise<void>;
 }) {
   const [subscribers, setSubscribers] = useState<any[]>([]);
+  console.log("DashboardPage Render");
   const [activeTab, setActiveTab] = useState("overview");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

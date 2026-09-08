@@ -262,6 +262,8 @@ export const BookingsTab = React.memo(function BookingsTab({
   handleViewBookingDetails,
   handleDeleteBooking,
 }: BookingsTabProps) {
+  const [limit, setLimit] = React.useState(30);
+  const displayedBookings = filteredBookings.slice(0, limit);
   return (
     <>
       <DashboardTabHeader title="قائمة الحجوزات" count={filteredBookings.length}>
@@ -304,7 +306,7 @@ export const BookingsTab = React.memo(function BookingsTab({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {filteredBookings.map((booking) => (
+            {displayedBookings.map((booking) => (
               <tr key={booking.id} className="hover:bg-white/50 transition-all group">
                 <td className="px-6 py-4 font-medium text-gray-800 text-sm max-w-[200px] sm:max-w-xs">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -383,7 +385,7 @@ export const BookingsTab = React.memo(function BookingsTab({
       <div className="block md:hidden">
         {filteredBookings.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {filteredBookings.map((booking) => (
+            {displayedBookings.map((booking) => (
               <div key={booking.id} className="p-4 bg-white rounded-xl border border-gray-150 hover:shadow-sm transition-all duration-300 space-y-4">
                 <div className="flex justify-between items-start gap-4">
                   <div className="min-w-0 flex-1">
@@ -459,6 +461,11 @@ export const BookingsTab = React.memo(function BookingsTab({
           </div>
         )}
       </div>
+      {filteredBookings.length > limit && (
+        <div className="mt-6 flex justify-center pb-4">
+          <button onClick={() => setLimit(l => l + 30)} className="px-6 py-2 bg-gray-50 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors border border-gray-200 cursor-pointer">عرض المزيد</button>
+        </div>
+      )}
     </>
   );
 });
@@ -501,6 +508,8 @@ export const GenericItemsTab = React.memo(function GenericItemsTab({
   setIsModalOpen,
   handleDeleteItem,
 }: GenericItemsTabProps) {
+  const [limit, setLimit] = React.useState(30);
+  const displayedItems = items.slice(0, limit);
   return (
     <>
       <DashboardTabHeader title={title} count={items.length}>
@@ -546,6 +555,11 @@ export const GenericItemsTab = React.memo(function GenericItemsTab({
         }}
         onDeleteItem={handleDeleteItem}
       />
+      {items.length > limit && (
+        <div className="mt-6 flex justify-center pb-4">
+          <button onClick={() => setLimit(l => l + 30)} className="px-6 py-2 bg-gray-50 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors border border-gray-200 cursor-pointer">عرض المزيد</button>
+        </div>
+      )}
     </>
   );
 });
@@ -616,6 +630,8 @@ export const SubscribersTab = React.memo(function SubscribersTab({
   setConfirmModal,
   showToast,
 }: SubscribersTabProps) {
+  const [limit, setLimit] = React.useState(30);
+  const displayedSubscribers = filteredSubscribers.slice(0, limit);
   const handleRefresh = async () => {
     try {
       const data = await apiService.getSubscribers();
@@ -672,7 +688,7 @@ export const SubscribersTab = React.memo(function SubscribersTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredSubscribers.map((sub: any) => (
+              {displayedSubscribers.map((sub: any) => (
                 <tr key={sub.id} className="group hover:bg-white/50 transition-all">
                   <td className="px-6 py-4 font-medium text-gray-800 text-sm">
                     <HighlightText text={sub.name || "---"} search={searchQuery} />
@@ -713,7 +729,7 @@ export const SubscribersTab = React.memo(function SubscribersTab({
         </div>
 
         <div className="block md:hidden divide-y divide-gray-100 bg-white">
-          {filteredSubscribers.map((sub: any) => (
+          {displayedSubscribers.map((sub: any) => (
             <div key={sub.id} className="p-4 flex items-center justify-between hover:bg-white/50 transition-all gap-4">
               <div className="space-y-1 min-w-0 flex-1">
                 <h4 className="font-medium text-gray-800 text-sm truncate">
@@ -748,6 +764,11 @@ export const SubscribersTab = React.memo(function SubscribersTab({
             </div>
           )}
         </div>
+        {filteredSubscribers.length > limit && (
+          <div className="p-4 flex justify-center border-t border-gray-100">
+            <button onClick={() => setLimit(l => l + 30)} className="px-6 py-2 bg-gray-50 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors border border-gray-200 cursor-pointer">عرض المزيد</button>
+          </div>
+        )}
       </div>
     </div>
   );
