@@ -8,14 +8,12 @@ import { HighlightText } from "../ui";
 
 interface OfferCardProps {
   offer: Offer;
-  idx: number;
   onViewDetails: (offer: Offer) => void;
   searchQuery?: string;
 }
 
 export const OfferCard: React.FC<OfferCardProps> = React.memo(({
   offer,
-  idx,
   onViewDetails,
   searchQuery,
 }) => {

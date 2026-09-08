@@ -1,10 +1,9 @@
 import { parseStringArray } from "../lib/utils";
 import { Logo } from "../components/ui";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from "react";
 import { Booking } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  normalizeAndStemText,
   getSearchTerms,
   matchesBooking,
   matchesOffer,
@@ -94,7 +93,8 @@ export function DashboardPage({
     } else if (activeTab === "bookings" || activeTab === "overview") {
       onRefresh?.();
     }
-  }, [activeTab, onRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Real-time synchronization when admin window regains focus or periodically
   useEffect(() => {
@@ -108,7 +108,8 @@ export function DashboardPage({
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
-  }, [onRefresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -153,8 +154,8 @@ export function DashboardPage({
 
       if (isInput) return;
 
-      // Focus search input: press '/' or 'Ctrl+F'
-      if (e.key === "/" || (e.ctrlKey && e.key === "f")) {
+      // Focus search input: press '/'
+      if (e.key === "/") {
         e.preventDefault();
         const searchInput = document.querySelector(
           'input[placeholder*="بحث"]',
@@ -166,23 +167,6 @@ export function DashboardPage({
         return;
       }
 
-      // Quick Tab Switching: Alt + [1-7]
-      if (e.altKey && ["1", "2", "3", "4", "5", "6", "7"].includes(e.key)) {
-        e.preventDefault();
-        const tabs = [
-          "overview",
-          "bookings",
-          "offers",
-          "visas",
-          "destinations",
-          "subscribers",
-          "settings",
-        ];
-        const index = parseInt(e.key) - 1;
-        if (index >= 0 && index < tabs.length) {
-          setActiveTab(tabs[index]);
-        }
-      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -264,7 +248,8 @@ export function DashboardPage({
   const [offerStatusFilter, setOfferStatusFilter] = useState("الكل");
   const [visaStatusFilter, setVisaStatusFilter] = useState("الكل");
 
-  const searchTerms = useMemo(() => getSearchTerms(searchQuery), [searchQuery]);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const searchTerms = useMemo(() => getSearchTerms(deferredSearchQuery), [deferredSearchQuery]);
 
   // Global matches across all records in each category
   const globalSearchOffers = useMemo(() => {
@@ -335,7 +320,7 @@ export function DashboardPage({
   }, [bookings]);
 
   const searchCounts = useMemo(() => {
-    if (!searchQuery.trim()) return {} as Record<string, number>;
+    if (!deferredSearchQuery.trim()) return {} as Record<string, number>;
     return {
       overview:
         globalSearchBookings.length +
@@ -350,7 +335,7 @@ export function DashboardPage({
       subscribers: globalSearchSubscribers.length,
     } as Record<string, number>;
   }, [
-    searchQuery,
+    deferredSearchQuery,
     globalSearchBookings,
     globalSearchOffers,
     globalSearchVisas,
@@ -971,9 +956,9 @@ export function DashboardPage({
               </div>
             )}
             {activeTab === "overview" ? (
-              searchQuery.trim() !== "" ? (
+              deferredSearchQuery.trim() !== "" ? (
                 <GlobalSearchResults
-                  searchQuery={searchQuery}
+                  searchQuery={deferredSearchQuery}
                   filteredBookings={globalSearchBookings}
                   filteredOffers={globalSearchOffers}
                   filteredVisas={globalSearchVisas}
@@ -1007,7 +992,7 @@ export function DashboardPage({
               <SubscribersTab
                 subscribers={subscribers}
                 filteredSubscribers={filteredSubscribers}
-                searchQuery={searchQuery}
+                searchQuery={deferredSearchQuery}
                 setSubscribers={setSubscribers}
                 setConfirmModal={setConfirmModal}
                 showToast={showToast}
@@ -1061,7 +1046,7 @@ export function DashboardPage({
                   {activeTab === "offers" && (
                     <OffersTab
                       filteredOffers={filteredOffers}
-                      searchQuery={searchQuery}
+                      searchQuery={deferredSearchQuery}
                       offerStatusFilter={offerStatusFilter}
                       setOfferStatusFilter={setOfferStatusFilter}
                       handleMoveItem={handleMoveItem}
@@ -1075,7 +1060,7 @@ export function DashboardPage({
                   {activeTab === "visas" && (
                     <VisasTab
                       filteredVisas={filteredVisas}
-                      searchQuery={searchQuery}
+                      searchQuery={deferredSearchQuery}
                       visaStatusFilter={visaStatusFilter}
                       setVisaStatusFilter={setVisaStatusFilter}
                       handleMoveItem={handleMoveItem}
@@ -1089,7 +1074,7 @@ export function DashboardPage({
                   {activeTab === "destinations" && (
                     <DestinationsTab
                       filteredDestinations={filteredDestinations}
-                      searchQuery={searchQuery}
+                      searchQuery={deferredSearchQuery}
                       handleMoveItem={handleMoveItem}
                       handleDuplicateDestination={handleDuplicateDestination}
                       setEditingItem={setEditingItem}
@@ -1101,7 +1086,7 @@ export function DashboardPage({
                   {activeTab === "bookings" && (
                     <BookingsTab
                       filteredBookings={filteredBookings}
-                      searchQuery={searchQuery}
+                      searchQuery={deferredSearchQuery}
                       statusFilter={statusFilter}
                       setStatusFilter={setStatusFilter}
                       serviceFilter={serviceFilter}

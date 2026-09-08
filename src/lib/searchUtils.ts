@@ -3,6 +3,7 @@ import { parseStringArray } from "./utils";
 // High-performance memoization caches for search normalization & stemming
 const arabicNormalizeCache = new Map<string, string>();
 const stemTextCache = new Map<string, string>();
+const stemWordCache = new Map<string, string>();
 const MAX_CACHE_SIZE = 3000;
 
 // High frequency Arabic particles & stop words that must never trigger fuzzy or partial stem matching
@@ -143,6 +144,9 @@ export function normalizeArabic(text: string): string {
 export function stemArabicWord(word: string): string {
   if (!word || word.length <= 3) return word;
 
+  const cached = stemWordCache.get(word);
+  if (cached !== undefined) return cached;
+
   let w = word;
 
   // 1. Strip prefixes
@@ -168,10 +172,18 @@ export function stemArabicWord(word: string): string {
     w = w.slice(2);
   }
 
-  if (w.length <= 3) return w;
+  if (w.length <= 3) {
+    if (stemWordCache.size >= MAX_CACHE_SIZE) stemWordCache.clear();
+    stemWordCache.set(word, w);
+    return w;
+  }
 
   // Protect "عمره" from collapsing into the person name "عمر"
-  if (w === "عمره" || w === "عمرات") return "عمره";
+  if (w === "عمره" || w === "عمرات") {
+    if (stemWordCache.size >= MAX_CACHE_SIZE) stemWordCache.clear();
+    stemWordCache.set(word, "عمره");
+    return "عمره";
+  }
 
   // 2. Strip inflectional suffixes
   if (
@@ -188,6 +200,8 @@ export function stemArabicWord(word: string): string {
     w = w.slice(0, -1);
   }
 
+  if (stemWordCache.size >= MAX_CACHE_SIZE) stemWordCache.clear();
+  stemWordCache.set(word, w);
   return w;
 }
 

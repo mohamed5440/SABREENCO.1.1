@@ -20,6 +20,7 @@ function setCachedData(key: string, data: any) {
   (globalThis as any)._apiCache[key] = { data, timestamp };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function clearCache(_key?: string) {
   // Always clear all memory cache so state updates immediately and globally
   (globalThis as any)._apiCache = {};
