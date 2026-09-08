@@ -1033,20 +1033,6 @@ async function startServer() {
   let dataVersion = Date.now();
   const cache: Record<string, { data: any, expiry: number }> = {};
   const CACHE_TTL = 3600000; // 1 hour (cleared instantly upon any database modification)
-
-  // Real-Time SSE Clients set for sub-second zero-latency push notifications
-  const sseClients = new Set<express.Response>();
-
-  const broadcastRealtimeEvent = (payload: { type: string; table?: string; version: number }) => {
-    const message = `data: ${JSON.stringify(payload)}\n\n`;
-    for (const client of sseClients) {
-      try {
-        client.write(message);
-      } catch {
-        sseClients.delete(client);
-      }
-    }
-  };
   
   const getCached = (key: string) => {
     const item = cache[key];
@@ -1058,12 +1044,17 @@ async function startServer() {
     cache[key] = { data, expiry: Date.now() + CACHE_TTL };
   };
   
-  const clearCache = (table?: string) => {
+  const clearCache = (keyPrefix?: string) => {
     dataVersion = Date.now();
-    // Complete wipe to ensure absolute freshness
-    Object.keys(cache).forEach(k => delete cache[k]);
-    // Instant real-time push to all connected visitors and admin dashboards
-    broadcastRealtimeEvent({ type: 'update', table: table || 'all', version: dataVersion });
+    if (!keyPrefix) {
+      Object.keys(cache).forEach(k => delete cache[k]);
+    } else {
+      Object.keys(cache).forEach(k => { 
+        if (k.startsWith(keyPrefix)) delete cache[k]; 
+      });
+      // Always invalidate composite init cache
+      delete cache['init'];
+    }
   };
 
   const getOrSetCache = async <T>(key: string, queryFn: () => Promise<T>): Promise<T> => {
@@ -1080,34 +1071,6 @@ async function startServer() {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.json({ version: dataVersion });
-  });
-
-  // Real-Time Server-Sent Events (SSE) stream for instant sub-second synchronization
-  app.get('/api/realtime/stream', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.flushHeaders?.();
-
-    // Initial handshake
-    res.write(`data: ${JSON.stringify({ type: 'connected', version: dataVersion })}\n\n`);
-
-    sseClients.add(res);
-
-    const pingInterval = setInterval(() => {
-      try {
-        res.write(': ping\n\n');
-      } catch {
-        clearInterval(pingInterval);
-        sseClients.delete(res);
-      }
-    }, 25000);
-
-    req.on('close', () => {
-      clearInterval(pingInterval);
-      sseClients.delete(res);
-    });
   });
 
   // Reusable Real-Time Cache/Authorization GET Helper

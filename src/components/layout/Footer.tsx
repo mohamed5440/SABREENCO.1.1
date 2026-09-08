@@ -317,18 +317,45 @@ export const Footer: React.FC<FooterProps> = ({
                 },
                 { icon: <Link size={18} />, label: "لينك دفع إلكتروني" },
                 { icon: <CreditCard size={18} />, label: "ماكينة فيزا (POS)" },
-                { icon: <CreditCard size={18} />, label: "متاح التقسيط" },
+                {
+                  icon: <CreditCard size={18} />,
+                  label: "متاح التقسيط مع فاليو (valU)",
+                  highlight: true,
+                },
               ].map((method, i) => (
                 <li
                   key={i}
-                  className="flex items-center gap-3"
+                  className={`flex items-center justify-between gap-3 ${
+                    method.highlight
+                      ? "p-2 bg-primary/5 border border-primary/20 rounded-xl"
+                      : ""
+                  }`}
                 >
-                  <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    {method.icon}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                        method.highlight
+                          ? "bg-primary text-white"
+                          : "bg-primary/10 text-primary"
+                      }`}
+                    >
+                      {method.icon}
+                    </div>
+                    <span
+                      className={`text-sm font-medium ${
+                        method.highlight
+                          ? "text-primary font-bold"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      {method.label}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium text-gray-800">
-                    {method.label}
-                  </span>
+                  {method.highlight && (
+                    <span className="text-[10px] font-bold text-primary bg-white border border-primary/20 px-2 py-0.5 rounded-full shrink-0">
+                      تقسيط مريح
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

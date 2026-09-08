@@ -109,54 +109,6 @@ export const apiService = {
       return 0;
     }
   },
-  // Real-time EventSource connection for sub-second zero-latency synchronization
-  subscribeToRealtime(
-    onUpdate: (data: { type: string; table?: string; version: number }) => void,
-  ): () => void {
-    let es: EventSource | null = null;
-    let reconnectTimeout: any = null;
-    let isCancelled = false;
-
-    const connect = () => {
-      if (isCancelled) return;
-      try {
-        es = new EventSource("/api/realtime/stream");
-        es.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data && data.version) {
-              onUpdate(data);
-            }
-          } catch {
-            // ignore
-          }
-        };
-        es.onerror = () => {
-          if (es) {
-            es.close();
-            es = null;
-          }
-          if (!isCancelled) {
-            clearTimeout(reconnectTimeout);
-            reconnectTimeout = setTimeout(connect, 3000);
-          }
-        };
-      } catch {
-        // fallback
-      }
-    };
-
-    connect();
-
-    return () => {
-      isCancelled = true;
-      if (es) {
-        es.close();
-        es = null;
-      }
-      clearTimeout(reconnectTimeout);
-    };
-  },
   // Init Data (Optimized)
   async getInitData(force = false) {
     if (force) {
@@ -335,7 +287,6 @@ export const apiService = {
       method: "POST",
       body: JSON.stringify(booking),
     });
-    clearCache("bookings");
     const item = Array.isArray(data) ? data[0] : data;
     if (!item) {
       throw new Error("لم يتم استلام تأكيد حفظ الحجز من الخادم.");
@@ -361,7 +312,6 @@ export const apiService = {
       method: "PUT",
       body: JSON.stringify(bookingData),
     });
-    clearCache("bookings");
     return data[0] as Booking;
   },
   async updateBookingStatus(id: string | number, status: string) {
@@ -369,12 +319,10 @@ export const apiService = {
       method: "PUT",
       body: JSON.stringify({ status }),
     });
-    clearCache("bookings");
     return data[0] as Booking;
   },
   async deleteBooking(id: string | number) {
     await fetchApi(`/api/bookings/${id}`, { method: "DELETE" });
-    clearCache("bookings");
   },
 
   // Social Links

@@ -236,20 +236,10 @@ export default function App() {
     [hasFetchedInit],
   );
 
-  // Real-time synchronization across all visitors & tabs (Instant SSE Push + Fallback Ping)
+  // Real-time synchronization across all visitors & tabs
   useEffect(() => {
     let isMounted = true;
 
-    // 1. Instant Sub-Second Real-Time Server-Sent Events Push Listener
-    const unsubscribeSSE = apiService.subscribeToRealtime(async (data) => {
-      if (!isMounted) return;
-      if (data && data.version && data.version !== lastVersionRef.current) {
-        lastVersionRef.current = data.version;
-        await fetchData(true);
-      }
-    });
-
-    // 2. Periodic Safety Check & Tab Focus Listener
     const checkRealTimeSync = async () => {
       if (typeof document !== "undefined" && document.hidden) return;
       try {
@@ -268,7 +258,7 @@ export default function App() {
       }
     };
 
-    // Lightweight safety ping every 15s (zero DB overhead, keeps everyone in sync)
+    // Lightweight ping every 15s (zero DB overhead, keeps everyone in sync)
     const interval = setInterval(checkRealTimeSync, 15000);
 
     const handleVisibility = () => {
@@ -281,7 +271,6 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      unsubscribeSSE();
       clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleVisibility);
