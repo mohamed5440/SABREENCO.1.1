@@ -4,11 +4,15 @@ import { apiService } from "./lib/apiService";
 
 import { ErrorBoundary, Header, Footer } from "./components/layout";
 import { Hero } from "./components/sections/Hero";
-import { OffersSection as Offers } from "./components/sections/OffersSection";
 import { CheckCircle, AlertCircle } from "lucide-react";
 
 const BookingPage = lazy(() =>
   import("./pages/BookingPage").then((m) => ({ default: m.BookingPage })),
+);
+const Offers = lazy(() =>
+  import("./components/sections/OffersSection").then((m) => ({
+    default: m.OffersSection,
+  })),
 );
 const VisaSection = lazy(() =>
   import("./components/sections/VisaSection").then((m) => ({
@@ -174,65 +178,57 @@ export default function App() {
       if (hasFetchedInit && !force) return;
 
       try {
-        // 1. Fetch public site data (offers, destinations, visas) and update state immediately
-        const initDataPromise = apiService
-          .getInitData(force)
-          .then((initData) => {
-            if (initData) {
-              if (initData.version) {
-                lastVersionRef.current = initData.version;
-              }
-              setSiteData((prev) => {
-                const newData = {
-                  ...prev,
-                  offers: initData.offers || [],
-                  destinations: initData.destinations || [],
-                  visas: initData.visas || [],
-                  socialLinks: initData.socialLinks?.length
-                    ? initData.socialLinks
-                    : prev.socialLinks,
-                  contactInfo: initData.contactInfo || prev.contactInfo,
-                };
-                try {
-                  localStorage.setItem(
-                    "sabreen_init_data_cache",
-                    JSON.stringify({
-                      offers: newData.offers,
-                      destinations: newData.destinations,
-                      visas: newData.visas,
-                      socialLinks: newData.socialLinks,
-                      contactInfo: newData.contactInfo,
-                    }),
-                  );
-                } catch (e) {
-                  console.warn("Failed to cache init data in localStorage", e);
-                }
-                return newData;
-              });
-              setHasFetchedInit(true);
-            }
-            return initData;
-          })
-          .catch(() => null);
+        const userPromise = apiService.getCurrentUser().catch(() => null);
+        const initDataPromise = apiService.getInitData(force).catch(() => null);
 
-        // 2. Fetch user authentication in background without delaying offers
-        const userPromise = apiService
-          .getCurrentUser()
-          .then(async (user) => {
-            if (user) {
-              setIsLoggedIn(true);
-              setCurrentUser(user);
-              const bookings = await apiService.getBookings().catch(() => []);
-              setSiteData((prev) => ({ ...prev, bookings: bookings || [] }));
-            }
-            if (window.location.pathname === "/admin-login") {
-              setIsLoginOpen(true);
-            }
-            return user;
-          })
-          .catch(() => null);
+        const [user, initData] = await Promise.all([userPromise, initDataPromise]);
 
-        await Promise.all([initDataPromise, userPromise]);
+        if (user) {
+          setIsLoggedIn(true);
+          setCurrentUser(user);
+        }
+
+        // Handle URL-based login trigger
+        if (window.location.pathname === "/admin-login") {
+          setIsLoginOpen(true);
+        }
+
+        const bookings = user ? await apiService.getBookings().catch(() => []) : [];
+
+        if (initData) {
+          if (initData.version) {
+            lastVersionRef.current = initData.version;
+          }
+          setSiteData((prev) => {
+            const newData = {
+              ...prev,
+              offers: initData.offers || [],
+              destinations: initData.destinations || [],
+              bookings: bookings || [],
+              visas: initData.visas || [],
+              socialLinks: initData.socialLinks?.length
+                ? initData.socialLinks
+                : prev.socialLinks,
+              contactInfo: initData.contactInfo || prev.contactInfo,
+            };
+            try {
+              localStorage.setItem("sabreen_init_data_cache", JSON.stringify({
+                offers: newData.offers,
+                destinations: newData.destinations,
+                visas: newData.visas,
+                socialLinks: newData.socialLinks,
+                contactInfo: newData.contactInfo
+              }));
+            } catch (e) {
+              console.warn("Failed to cache init data in localStorage", e);
+            }
+            return newData;
+          });
+        } else {
+          // Fallback if init fails
+          setSiteData((prev) => ({ ...prev, bookings: bookings || [] }));
+        }
+        setHasFetchedInit(true);
       } catch (error) {
         console.error("Error fetching data from API:", error);
       }
@@ -324,39 +320,26 @@ export default function App() {
     }
   }, [fetchData]);
 
-  // Synchronize and recover selectedOffer in real-time from siteData.offers, URL parameter, or context
+  // Recover selectedOffer from URL parameter or context if null on page load or refresh
   useEffect(() => {
-    if (currentPage === "offer-details" && siteData.offers.length > 0) {
-      if (selectedOffer) {
-        // Keep selectedOffer in sync with latest real-time offer data
-        const updated = siteData.offers.find(
-          (o) => String(o.id) === String(selectedOffer.id),
+    if (currentPage === "offer-details" && !selectedOffer && siteData.offers.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const urlOfferId = params.get("id") || bookingContext?.id;
+      const urlOfferName = params.get("offerName") || bookingContext?.offerName;
+      
+      let found = null;
+      if (urlOfferId) {
+        found = siteData.offers.find((o) => String(o.id) === String(urlOfferId));
+      }
+      if (!found && urlOfferName) {
+        const decodedName = decodeURIComponent(urlOfferName);
+        found = siteData.offers.find(
+          (o) => o.title === decodedName || o.name === decodedName
         );
-        if (updated && updated !== selectedOffer) {
-          setSelectedOffer(updated);
-        }
-      } else {
-        const params = new URLSearchParams(window.location.search);
-        const urlOfferId = params.get("id") || bookingContext?.id;
-        const urlOfferName =
-          params.get("offerName") || bookingContext?.offerName;
+      }
 
-        let found = null;
-        if (urlOfferId) {
-          found = siteData.offers.find(
-            (o) => String(o.id) === String(urlOfferId),
-          );
-        }
-        if (!found && urlOfferName) {
-          const decodedName = decodeURIComponent(urlOfferName);
-          found = siteData.offers.find(
-            (o) => o.title === decodedName || o.name === decodedName,
-          );
-        }
-
-        if (found) {
-          setSelectedOffer(found);
-        }
+      if (found) {
+        requestAnimationFrame(() => setSelectedOffer(prev => prev || found));
       }
     }
   }, [currentPage, selectedOffer, siteData.offers, bookingContext]);

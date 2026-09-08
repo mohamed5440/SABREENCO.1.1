@@ -23,9 +23,9 @@ export const OffersSection: React.FC<OffersSectionProps> = React.memo(({
       className="py-10 md:py-16 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto"
     >
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
         className="flex flex-col sm:flex-row sm:items-end items-start justify-between gap-5 mb-8 md:mb-10"
       >
         <div
