@@ -89,7 +89,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
             />
             <input
               type="text"
-
+              placeholder="ابحث عن وجهة، عرض، دولة، سعر، أو تفاصيل الرحلة..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white border border-gray-200 rounded-xl pr-12 pl-4 h-12 md:h-14 text-sm md:text-base font-medium text-gray-800 focus:outline-none focus:border-primary transition-all placeholder:text-gray-400"
@@ -191,6 +191,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
               offer={offer}
               idx={idx}
               onViewDetails={onViewDetails}
+              searchQuery={searchQuery}
             />
           ))}
         </div>

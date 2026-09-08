@@ -307,11 +307,30 @@ export const BookingsTab = React.memo(function BookingsTab({
             {filteredBookings.map((booking) => (
               <tr key={booking.id} className="hover:bg-white/50 transition-all group">
                 <td className="px-6 py-4 font-medium text-gray-800 text-sm max-w-[200px] sm:max-w-xs">
-                  <div className="truncate">
-                    <HighlightText text={booking.name || booking.user || "---"} search={searchQuery} />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-gray-800 truncate">
+                      <HighlightText text={booking.name || booking.user || "---"} search={searchQuery} />
+                    </span>
+                    <span className="text-[10px] font-mono font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                      #<HighlightText text={String(booking.id)} search={searchQuery} />
+                    </span>
                   </div>
-                  <div className="text-xs text-gray-400 font-medium truncate mt-0.5">
-                    <HighlightText text={booking.phone || booking.id || ""} search={searchQuery} />
+                  <div className="text-xs text-gray-400 font-medium truncate mt-0.5 flex items-center gap-2" dir="ltr">
+                    {booking.phone && (
+                      <span className="font-mono">
+                        <HighlightText text={booking.phone} search={searchQuery} />
+                      </span>
+                    )}
+                    {booking.passportNumber && (
+                      <span className="text-[11px] text-gray-500 font-sans">
+                        جواز: <HighlightText text={booking.passportNumber} search={searchQuery} />
+                      </span>
+                    )}
+                    {booking.email && !booking.phone && (
+                      <span className="text-[11px] text-gray-400 truncate">
+                        <HighlightText text={booking.email} search={searchQuery} />
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 font-medium text-gray-700 text-sm">
@@ -368,11 +387,25 @@ export const BookingsTab = React.memo(function BookingsTab({
               <div key={booking.id} className="p-4 bg-white rounded-xl border border-gray-150 hover:shadow-sm transition-all duration-300 space-y-4">
                 <div className="flex justify-between items-start gap-4">
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-semibold text-gray-800 text-sm truncate">
-                      <HighlightText text={booking.name || booking.user || "---"} search={searchQuery} />
-                    </h4>
-                    <div className="text-[10px] text-gray-400 font-medium mt-0.5 select-all font-mono">
-                      <HighlightText text={booking.phone || booking.id || ""} search={searchQuery} />
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="font-semibold text-gray-800 text-sm truncate">
+                        <HighlightText text={booking.name || booking.user || "---"} search={searchQuery} />
+                      </h4>
+                      <span className="text-[10px] font-mono font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                        #<HighlightText text={String(booking.id)} search={searchQuery} />
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-gray-400 font-medium mt-0.5 select-all font-mono flex items-center gap-2 flex-wrap" dir="ltr">
+                      {booking.phone && (
+                        <span>
+                          <HighlightText text={booking.phone} search={searchQuery} />
+                        </span>
+                      )}
+                      {booking.passportNumber && (
+                        <span className="font-sans text-gray-600">
+                          جواز: <HighlightText text={booking.passportNumber} search={searchQuery} />
+                        </span>
+                      )}
                     </div>
                   </div>
                   <BookingStatusSelect
