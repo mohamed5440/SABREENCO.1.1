@@ -58,13 +58,11 @@ async function startServer() {
   // Security Middlewares
   app.use(helmet({
     contentSecurityPolicy: false, // Vite needs some flexibility in dev
-    crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: false,
-    crossOriginOpenerPolicy: false,
-    frameguard: false,
+    crossOriginEmbedderPolicy: false
   }));
   app.use(helmet.xssFilter()); // Explicit XSS protection
   app.use(helmet.noSniff()); // Prevent MIME type sniffing
+  app.use(helmet.frameguard({ action: 'deny' })); // Prevent Clickjacking (CSRF protection element)
   app.use(helmet.hidePoweredBy()); // Hide Express signature
   
   // Rate Limiting

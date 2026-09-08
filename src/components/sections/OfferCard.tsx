@@ -4,18 +4,17 @@ import { motion, AnimatePresence } from "motion/react";
 import { Clock, ArrowLeft, ArrowUpLeft, MapPin, ZoomIn, X } from "lucide-react";
 import { Offer } from "../../types";
 import { optimizeImageUrl, getWhatsAppBookingUrl } from "../../lib/utils";
-import { HighlightText } from "../ui";
 
 interface OfferCardProps {
   offer: Offer;
+  idx: number;
   onViewDetails: (offer: Offer) => void;
-  searchQuery?: string;
 }
 
 export const OfferCard: React.FC<OfferCardProps> = React.memo(({
   offer,
+  idx,
   onViewDetails,
-  searchQuery,
 }) => {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
@@ -55,7 +54,7 @@ export const OfferCard: React.FC<OfferCardProps> = React.memo(({
           <div className="absolute bottom-3 right-3 z-20">
             <div className="bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-white text-2xs font-semibold border border-white/20 flex items-center gap-1.5 shadow-sm">
               <MapPin size={10} className="text-white" />
-              <HighlightText text={offer.destination || "وجهة مختارة"} search={searchQuery || ""} />
+              {offer.destination || "وجهة مختارة"}
             </div>
           </div>
 
@@ -78,7 +77,7 @@ export const OfferCard: React.FC<OfferCardProps> = React.memo(({
         <div className="p-3.5 sm:p-4 flex flex-col flex-1">
           {/* Title */}
           <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1.5 mt-0 tracking-normal group-hover:text-primary transition-colors line-clamp-1">
-            <HighlightText text={offer.title} search={searchQuery || ""} />
+            {offer.title}
           </h3>
 
           {/* Price & Duration Row */}

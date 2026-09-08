@@ -15,7 +15,6 @@ import { Visa } from "../types";
 import { ServicePageLayout } from "../components/layout";
 import { optimizeImageUrl } from "../lib/utils";
 import { getSearchTerms, matchesVisa } from "../lib/searchUtils";
-import { HighlightText } from "../components/ui";
 
 interface VisaPageProps {
   onNavigate: (page: string, service?: string, context?: any) => void;
@@ -73,7 +72,7 @@ export const VisaPage: React.FC<VisaPageProps> = ({ onNavigate, visas }) => {
           />
           <input
             type="text"
-            placeholder="ابحث عن تأشيرة، دولة، مدة، سعر، أو شروط الاستخراج..."
+
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white border border-gray-200 rounded-xl pr-12 pl-4 h-12 text-sm md:text-base font-medium text-gray-800 focus:outline-none focus:border-primary focus:bg-white transition-all placeholder:text-gray-400"
@@ -117,10 +116,10 @@ export const VisaPage: React.FC<VisaPageProps> = ({ onNavigate, visas }) => {
                 </div>
                 <div className="p-5 md:p-6 flex flex-col flex-1">
                   <h3 className="text-xl font-medium text-gray-800 mb-2 tracking-normal">
-                    <HighlightText text={visa.title} search={searchQuery} />
+                    {visa.title}
                   </h3>
                   <div className="text-3xl font-medium text-primary mb-4 flex items-baseline gap-1">
-                    <HighlightText text={visa.price} search={searchQuery} />
+                    {visa.price}
                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {visa.currency || "درهم"}
                     </span>
@@ -129,11 +128,11 @@ export const VisaPage: React.FC<VisaPageProps> = ({ onNavigate, visas }) => {
                   <ul className="space-y-4 mb-8 flex-1">
                     <li className="flex items-center gap-3 text-sm text-gray-800 font-medium">
                       <Calendar size={18} className="text-primary shrink-0" />
-                      المدة: <HighlightText text={visa.duration} search={searchQuery} />
+                      المدة: {visa.duration}
                     </li>
                     <li className="flex items-center gap-3 text-sm text-gray-800 font-medium">
                       <Clock size={18} className="text-primary shrink-0" />
-                      الإنجاز: <HighlightText text={visa.processingTime} search={searchQuery} />
+                      الإنجاز: {visa.processingTime}
                     </li>
                     {(visa.features || []).map((feature, idx) => (
                       <li

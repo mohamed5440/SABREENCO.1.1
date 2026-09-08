@@ -420,30 +420,9 @@ export const UniversalItemsTable: React.FC<UniversalItemsTableProps> = React.mem
                         <ShieldCheck size={20} className="text-gray-300" />
                       )}
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-medium text-gray-700 text-sm tracking-tight line-clamp-2 max-w-xs">
-                        <HighlightText text={title} search={searchQuery} />
-                      </span>
-                      {(item.destination || item.country || (itemType !== "destinations" && item.category)) && (
-                        <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                          {item.destination && (
-                            <span>
-                              وجهة: <HighlightText text={item.destination} search={searchQuery} />
-                            </span>
-                          )}
-                          {item.country && (
-                            <span>
-                              دولة: <HighlightText text={item.country} search={searchQuery} />
-                            </span>
-                          )}
-                          {itemType !== "destinations" && item.category && (
-                            <span>
-                              • <HighlightText text={item.category} search={searchQuery} />
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <span className="font-medium text-gray-700 text-sm tracking-tight line-clamp-2 max-w-xs">
+                      <HighlightText text={title} search={searchQuery} />
+                    </span>
                   </div>
                 </td>
                 {itemType !== "destinations" && (
@@ -528,12 +507,6 @@ export const UniversalItemsMobileCards: React.FC<UniversalItemsTableProps> = Rea
                     <h4 className="font-semibold text-gray-800 text-xs leading-tight line-clamp-2">
                       <HighlightText text={title} search={searchQuery} />
                     </h4>
-                    {(item.destination || item.country) && (
-                      <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                        {item.destination && <span>وجهة: <HighlightText text={item.destination} search={searchQuery} /></span>}
-                        {item.country && <span>دولة: <HighlightText text={item.country} search={searchQuery} /></span>}
-                      </div>
-                    )}
                     {itemType !== "destinations" ? (
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium">
                         <span className="text-primary font-bold">

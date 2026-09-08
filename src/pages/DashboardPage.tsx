@@ -1,15 +1,14 @@
 import { parseStringArray } from "../lib/utils";
 import { Logo } from "../components/ui";
-import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Booking } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  getSearchTerms,
+  normalizeAndStemText,
   matchesBooking,
   matchesOffer,
   matchesVisa,
   matchesDestination,
-  matchesSubscriber,
 } from "../lib/searchUtils";
 import {
   FileText,
@@ -73,17 +72,9 @@ export function DashboardPage({
   onRefresh?: () => Promise<void>;
 }) {
   const [subscribers, setSubscribers] = useState<any[]>([]);
-  console.log("DashboardPage Render");
   const [activeTab, setActiveTab] = useState("overview");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    apiService
-      .getSubscribers()
-      .then((data) => setSubscribers(data || []))
-      .catch((err) => console.error(err));
-  }, []);
 
   useEffect(() => {
     if (activeTab === "subscribers") {
@@ -94,8 +85,7 @@ export function DashboardPage({
     } else if (activeTab === "bookings" || activeTab === "overview") {
       onRefresh?.();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, onRefresh]);
 
   // Real-time synchronization when admin window regains focus or periodically
   useEffect(() => {
@@ -109,8 +99,7 @@ export function DashboardPage({
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onRefresh]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -155,8 +144,8 @@ export function DashboardPage({
 
       if (isInput) return;
 
-      // Focus search input: press '/'
-      if (e.key === "/") {
+      // Focus search input: press '/' or 'Ctrl+F'
+      if (e.key === "/" || (e.ctrlKey && e.key === "f")) {
         e.preventDefault();
         const searchInput = document.querySelector(
           'input[placeholder*="بحث"]',
@@ -168,6 +157,23 @@ export function DashboardPage({
         return;
       }
 
+      // Quick Tab Switching: Alt + [1-7]
+      if (e.altKey && ["1", "2", "3", "4", "5", "6", "7"].includes(e.key)) {
+        e.preventDefault();
+        const tabs = [
+          "overview",
+          "bookings",
+          "offers",
+          "visas",
+          "destinations",
+          "subscribers",
+          "settings",
+        ];
+        const index = parseInt(e.key) - 1;
+        if (index >= 0 && index < tabs.length) {
+          setActiveTab(tabs[index]);
+        }
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -249,54 +255,37 @@ export function DashboardPage({
   const [offerStatusFilter, setOfferStatusFilter] = useState("الكل");
   const [visaStatusFilter, setVisaStatusFilter] = useState("الكل");
 
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const searchTerms = useMemo(() => getSearchTerms(deferredSearchQuery), [deferredSearchQuery]);
-
-  // Global matches across all records in each category
-  const globalSearchOffers = useMemo(() => {
-    return offers.filter((offer) => matchesOffer(offer, searchTerms));
-  }, [offers, searchTerms]);
-
-  const globalSearchVisas = useMemo(() => {
-    return visas.filter((visa) => matchesVisa(visa, searchTerms));
-  }, [visas, searchTerms]);
-
-  const globalSearchDestinations = useMemo(() => {
-    return destinations.filter((dest) => matchesDestination(dest, searchTerms));
-  }, [destinations, searchTerms]);
-
-  const globalSearchBookings = useMemo(() => {
-    return bookings.filter((booking) => matchesBooking(booking, searchTerms));
-  }, [bookings, searchTerms]);
-
-  const globalSearchSubscribers = useMemo(() => {
-    return subscribers.filter((sub) => matchesSubscriber(sub, searchTerms));
-  }, [subscribers, searchTerms]);
-
-  // Category tab-filtered lists (taking dropdown filters into account)
   const filteredOffers = useMemo(() => {
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
     return offers.filter((offer) => {
-      const matchesSearch = matchesOffer(offer, searchTerms);
+      const matchesSearch = matchesOffer(offer, terms);
       const matchesStatus =
         offerStatusFilter === "الكل" || offer.status === offerStatusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [offers, searchTerms, offerStatusFilter]);
+  }, [offers, searchQuery, offerStatusFilter]);
 
   const filteredVisas = useMemo(() => {
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
     return visas.filter((visa) => {
-      const matchesSearch = matchesVisa(visa, searchTerms);
+      const matchesSearch = matchesVisa(visa, terms);
       const matchesStatus =
         visaStatusFilter === "الكل" || visa.status === visaStatusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [visas, searchTerms, visaStatusFilter]);
+  }, [visas, searchQuery, visaStatusFilter]);
 
-  const filteredDestinations = globalSearchDestinations;
+  const filteredDestinations = useMemo(() => {
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    return destinations.filter((dest) => {
+      return matchesDestination(dest, terms);
+    });
+  }, [destinations, searchQuery]);
 
   const filteredBookings = useMemo(() => {
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
     return bookings.filter((booking) => {
-      const matchesSearch = matchesBooking(booking, searchTerms);
+      const matchesSearch = matchesBooking(booking, terms);
       const matchesStatus =
         statusFilter === "الكل" || booking.status === statusFilter;
       const matchesService =
@@ -305,9 +294,28 @@ export function DashboardPage({
         booking.service === serviceFilter;
       return matchesSearch && matchesStatus && matchesService;
     });
-  }, [bookings, searchTerms, statusFilter, serviceFilter]);
+  }, [bookings, searchQuery, statusFilter, serviceFilter]);
 
-  const filteredSubscribers = globalSearchSubscribers;
+  const filteredSubscribers = useMemo(() => {
+    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    return subscribers.filter((sub) => {
+      const stemmedQueryTerms = terms.map(normalizeAndStemText).filter(Boolean);
+      if (stemmedQueryTerms.length === 0) return true;
+
+      const searchContent = [
+        sub.name,
+        sub.phone,
+        sub.created_at
+          ? new Date(sub.created_at).toLocaleDateString("ar-EG")
+          : "",
+      ]
+        .map((val) => (val ? String(val) : ""))
+        .join(" ");
+
+      const stemmedContent = normalizeAndStemText(searchContent);
+      return stemmedQueryTerms.every((term) => stemmedContent.includes(term));
+    });
+  }, [subscribers, searchQuery]);
 
   // Dynamically extract categories from offers for filtering
   // Dynamically extract service types from bookings for filtering
@@ -321,27 +329,21 @@ export function DashboardPage({
   }, [bookings]);
 
   const searchCounts = useMemo(() => {
-    if (!deferredSearchQuery.trim()) return {} as Record<string, number>;
+    if (!searchQuery.trim()) return {} as Record<string, number>;
     return {
-      overview:
-        globalSearchBookings.length +
-        globalSearchOffers.length +
-        globalSearchVisas.length +
-        globalSearchDestinations.length +
-        globalSearchSubscribers.length,
-      bookings: globalSearchBookings.length,
-      offers: globalSearchOffers.length,
-      visas: globalSearchVisas.length,
-      destinations: globalSearchDestinations.length,
-      subscribers: globalSearchSubscribers.length,
+      bookings: filteredBookings.length,
+      offers: filteredOffers.length,
+      visas: filteredVisas.length,
+      destinations: filteredDestinations.length,
+      subscribers: filteredSubscribers.length,
     } as Record<string, number>;
   }, [
-    deferredSearchQuery,
-    globalSearchBookings,
-    globalSearchOffers,
-    globalSearchVisas,
-    globalSearchDestinations,
-    globalSearchSubscribers,
+    searchQuery,
+    filteredBookings,
+    filteredOffers,
+    filteredVisas,
+    filteredDestinations,
+    filteredSubscribers,
   ]);
 
   const handleDeleteItem = useCallback((
@@ -775,10 +777,10 @@ export function DashboardPage({
                 />
                 <input
                   type="text"
-                  placeholder="ابحث في الحجوزات، العروض، التأشيرات، الوجهات، المشتركين..."
+
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-xl pr-9 pl-8 py-2 text-sm font-medium text-gray-800 focus:bg-white focus:outline-none focus:border-primary transition-all placeholder:text-gray-400"
+                  className="w-full bg-white border border-gray-200 rounded-xl pr-9 pl-8 py-2 text-sm font-medium text-gray-800 focus:bg-white focus:outline-none focus:border-primary transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -817,10 +819,10 @@ export function DashboardPage({
                 />
                 <input
                   type="text"
-                  placeholder="ابحث في الحجوزات، العروض، التأشيرات، الوجهات، المشتركين..."
+
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-xl pr-9 pl-8 py-2.5 text-sm font-medium text-gray-800 focus:outline-none focus:border-primary transition-all placeholder:text-gray-400"
+                  className="w-full bg-white border border-gray-200 rounded-xl pr-9 pl-8 py-2.5 text-sm font-medium text-gray-800 focus:outline-none focus:border-primary transition-all"
                 />
                 {searchQuery && (
                   <button
@@ -833,138 +835,31 @@ export function DashboardPage({
                 )}
               </div>
             )}
-            {searchQuery.trim() !== "" && (
-              <div className="mb-6 p-4 bg-white border border-primary/20 rounded-2xl shadow-sm text-right space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                    <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 animate-pulse" />
-                    <span>
-                      البحث عن: <strong className="text-primary font-bold">"{searchQuery}"</strong>
-                      <span className="text-gray-400 mr-2 text-xs">
-                        (إجمالي النتائج: <strong className="text-gray-700">{searchCounts.overview || 0}</strong>)
-                      </span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-1"
-                    >
-                      <X size={13} />
-                      مسح البحث
-                    </button>
-                  </div>
+            {searchQuery.trim() !== "" && activeTab !== "overview" && (
+              <div className="mb-6 p-4 bg-primary/5 border border-primary/10 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-right">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                  <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                  <span>
+                    نتائج البحث عن <strong className="text-primary">"{searchQuery}"</strong> ({filteredBookings.length + filteredOffers.length + filteredVisas.length + filteredDestinations.length + filteredSubscribers.length} نتيجة)
+                  </span>
                 </div>
-
-                {/* Section Quick Jump Tabs */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar-horizontal pt-1 text-xs">
-                  <button
-                    onClick={() => setActiveTab("overview")}
-                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                      activeTab === "overview"
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-100"
-                    }`}
-                  >
-                    <span>النتائج الشاملة</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      activeTab === "overview" ? "bg-white/20 text-white" : "bg-primary/10 text-primary font-bold"
-                    }`}>
-                      {searchCounts.overview || 0}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("bookings")}
-                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                      activeTab === "bookings"
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-100"
-                    }`}
-                  >
-                    <span>الحجوزات</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      activeTab === "bookings" ? "bg-white/20 text-white" : "bg-primary/10 text-primary font-bold"
-                    }`}>
-                      {globalSearchBookings.length}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("offers")}
-                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                      activeTab === "offers"
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-100"
-                    }`}
-                  >
-                    <span>العروض</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      activeTab === "offers" ? "bg-white/20 text-white" : "bg-primary/10 text-primary font-bold"
-                    }`}>
-                      {globalSearchOffers.length}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("visas")}
-                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                      activeTab === "visas"
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-100"
-                    }`}
-                  >
-                    <span>التأشيرات</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      activeTab === "visas" ? "bg-white/20 text-white" : "bg-primary/10 text-primary font-bold"
-                    }`}>
-                      {globalSearchVisas.length}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("destinations")}
-                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                      activeTab === "destinations"
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-100"
-                    }`}
-                  >
-                    <span>الوجهات</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      activeTab === "destinations" ? "bg-white/20 text-white" : "bg-primary/10 text-primary font-bold"
-                    }`}>
-                      {globalSearchDestinations.length}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("subscribers")}
-                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                      activeTab === "subscribers"
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-100"
-                    }`}
-                  >
-                    <span>المشتركون</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      activeTab === "subscribers" ? "bg-white/20 text-white" : "bg-primary/10 text-primary font-bold"
-                    }`}>
-                      {globalSearchSubscribers.length}
-                    </span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => setActiveTab("overview")}
+                  className="px-4 py-2 bg-white border border-gray-200 text-gray-800 text-sm font-semibold rounded-xl hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-all cursor-pointer whitespace-nowrap"
+                >
+                  عرض النتائج الشاملة
+                </button>
               </div>
             )}
             {activeTab === "overview" ? (
-              deferredSearchQuery.trim() !== "" ? (
+              searchQuery.trim() !== "" ? (
                 <GlobalSearchResults
-                  searchQuery={deferredSearchQuery}
-                  filteredBookings={globalSearchBookings}
-                  filteredOffers={globalSearchOffers}
-                  filteredVisas={globalSearchVisas}
-                  filteredDestinations={globalSearchDestinations}
-                  filteredSubscribers={globalSearchSubscribers}
+                  searchQuery={searchQuery}
+                  filteredBookings={filteredBookings}
+                  filteredOffers={filteredOffers}
+                  filteredVisas={filteredVisas}
+                  filteredDestinations={filteredDestinations}
+                  filteredSubscribers={filteredSubscribers}
                   setActiveTab={setActiveTab}
                   setEditingItem={setEditingItem}
                   setIsModalOpen={setIsModalOpen}
@@ -993,7 +888,7 @@ export function DashboardPage({
               <SubscribersTab
                 subscribers={subscribers}
                 filteredSubscribers={filteredSubscribers}
-                searchQuery={deferredSearchQuery}
+                searchQuery={searchQuery}
                 setSubscribers={setSubscribers}
                 setConfirmModal={setConfirmModal}
                 showToast={showToast}
@@ -1047,7 +942,7 @@ export function DashboardPage({
                   {activeTab === "offers" && (
                     <OffersTab
                       filteredOffers={filteredOffers}
-                      searchQuery={deferredSearchQuery}
+                      searchQuery={searchQuery}
                       offerStatusFilter={offerStatusFilter}
                       setOfferStatusFilter={setOfferStatusFilter}
                       handleMoveItem={handleMoveItem}
@@ -1061,7 +956,7 @@ export function DashboardPage({
                   {activeTab === "visas" && (
                     <VisasTab
                       filteredVisas={filteredVisas}
-                      searchQuery={deferredSearchQuery}
+                      searchQuery={searchQuery}
                       visaStatusFilter={visaStatusFilter}
                       setVisaStatusFilter={setVisaStatusFilter}
                       handleMoveItem={handleMoveItem}
@@ -1075,7 +970,7 @@ export function DashboardPage({
                   {activeTab === "destinations" && (
                     <DestinationsTab
                       filteredDestinations={filteredDestinations}
-                      searchQuery={deferredSearchQuery}
+                      searchQuery={searchQuery}
                       handleMoveItem={handleMoveItem}
                       handleDuplicateDestination={handleDuplicateDestination}
                       setEditingItem={setEditingItem}
@@ -1087,7 +982,7 @@ export function DashboardPage({
                   {activeTab === "bookings" && (
                     <BookingsTab
                       filteredBookings={filteredBookings}
-                      searchQuery={deferredSearchQuery}
+                      searchQuery={searchQuery}
                       statusFilter={statusFilter}
                       setStatusFilter={setStatusFilter}
                       serviceFilter={serviceFilter}

@@ -332,8 +332,7 @@ export default function App() {
         const updated = siteData.offers.find(
           (o) => String(o.id) === String(selectedOffer.id),
         );
-        if (updated && updated.title !== selectedOffer.title) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (updated && updated !== selectedOffer) {
           setSelectedOffer(updated);
         }
       } else {

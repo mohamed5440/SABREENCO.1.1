@@ -1,32 +1,11 @@
 import React from "react";
-import { normalizeArabic, stemArabicWord, SYNONYM_MAP } from "../../lib/searchUtils";
-
-function buildArabicCharPattern(word: string): string {
-  if (!word || word.length < 2) return "";
-  const chars = Array.from(word);
-  const patternParts = chars.map((char) => {
-    let p = char.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-    if (/[أإآٱا]/.test(p)) {
-      p = "[أإآٱا]";
-    } else if (/[ةه]/.test(p)) {
-      p = "[ةه]";
-    } else if (/[ىيئ]/.test(p)) {
-      p = "[ىيئ]";
-    } else if (/[ؤو]/.test(p)) {
-      p = "[ؤو]";
-    }
-    return p + "[\\u064B-\\u065F\\u0640]*";
-  });
-
-  const allowPrefix = /[\u0600-\u06FF]/.test(word) && word.length >= 2;
-  const prefixPattern = allowPrefix ? "(?:[وبكفل]?(?:ال|لل|ٱل)?)?" : "";
-  return prefixPattern + patternParts.join("");
-}
+import { normalizeAndStemText } from "../../lib/searchUtils";
 
 /**
- * A robust Arabic & multilingual text highlighter component.
- * Uses Arabic normalization, stemming, dual Western/Eastern numeral support,
- * and domain synonyms to highlight matching words and roots smoothly.
+ * A robust Arabic text highlighter component.
+ * It uses the same normalization and stemming logic to match terms correctly,
+ * even with Arabic diacritics, varying alefs, and prefixes.
+ * This is diacritics-insensitive, shape-insensitive, and prefix-tolerant for Arabic letters.
  */
 export function HighlightText({
   text,
@@ -41,79 +20,50 @@ export function HighlightText({
   if (!search || !search.trim()) return <span>{textStr}</span>;
 
   // Split query into terms
-  const terms = search.trim().split(/\s+/).filter(Boolean);
+  const terms = search.split(/\s+/).filter(Boolean);
   if (terms.length === 0) return <span>{textStr}</span>;
 
   let parts: string[] = [];
   let isRegExpSuccess = false;
 
   try {
-    const rawPatterns: string[] = [];
+    // Sort terms by length descending to avoid short terms eating larger terms
+    const sortedTerms = [...terms].sort((a, b) => b.length - a.length);
 
-    for (const term of terms) {
-      const cleanTerm = term.trim();
-      if (!cleanTerm) continue;
+    // Create regex that matches any of the terms (case-insensitive)
+    const regexTerms = sortedTerms
+      .map((term) => {
+        const stem = normalizeAndStemText(term);
+        if (!stem) return "";
 
-      // Convert Eastern/Persian numerals to Western for digit check
-      const westernTerm = cleanTerm
-        .replace(/[٠۰]/g, "0")
-        .replace(/[١۱]/g, "1")
-        .replace(/[٢۲]/g, "2")
-        .replace(/[٣۳]/g, "3")
-        .replace(/[٤۴]/g, "4")
-        .replace(/[٥۵]/g, "5")
-        .replace(/[٦۶]/g, "6")
-        .replace(/[٧۷]/g, "7")
-        .replace(/[٨۸]/g, "8")
-        .replace(/[٩۹]/g, "9");
-
-      // If numeric / phone query
-      if (/^\+?\d+$/.test(westernTerm)) {
-        const digitsOnly = westernTerm.replace(/[^\d]/g, "");
-        if (digitsOnly.length > 0) {
-          const digitPattern = Array.from(digitsOnly)
-            .map((d) => {
-              const arabicDigit = String.fromCharCode(0x0660 + Number(d));
-              const persianDigit = String.fromCharCode(0x06F0 + Number(d));
-              return `[${d}${arabicDigit}${persianDigit}]`;
-            })
-            .join("");
-          rawPatterns.push(`\\+?${digitPattern}`);
-          continue;
-        }
-      }
-
-      // Skip 1-character search terms for word highlighting to avoid over-highlighting every letter
-      if (cleanTerm.length < 2) continue;
-
-      // Stem term if Arabic
-      const norm = normalizeArabic(cleanTerm);
-      const stem = stemArabicWord(norm);
-      const baseWord = stem && stem.length >= 3 ? stem : norm || cleanTerm;
-
-      if (baseWord && baseWord.length >= 2) {
-        const pat = buildArabicCharPattern(baseWord);
-        if (pat) rawPatterns.push(pat);
-      }
-
-      // Also highlight synonyms (e.g. if searching فيزا, highlight تاشيرة; if searching عروض, highlight عرض)
-      const synonyms = SYNONYM_MAP.get(norm) || (stem ? SYNONYM_MAP.get(stem) : undefined);
-      if (synonyms) {
-        for (const syn of synonyms.slice(0, 4)) {
-          if (syn && syn !== norm && syn.length >= 3) {
-            const synPat = buildArabicCharPattern(syn);
-            if (synPat) rawPatterns.push(synPat);
+        const chars = Array.from(stem);
+        const patternParts = chars.map((char) => {
+          let p = char.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+          if (/[أإآٱا]/.test(p)) {
+            p = "[أإآٱا]";
+          } else if (/[ةه]/.test(p)) {
+            p = "[ةه]";
+          } else if (/[ىي]/.test(p)) {
+            p = "[ىي]";
+          } else if (/[ؤئء]/.test(p)) {
+            p = "[ؤئء]";
           }
-        }
-      }
-    }
+          return p + "[\\u064B-\\u065F\\u0640]*";
+        });
 
-    const uniquePatterns = Array.from(new Set(rawPatterns.filter(Boolean)));
-    // Sort patterns by length descending so longer words match first
-    uniquePatterns.sort((a, b) => b.length - a.length);
+        // If the original term was stripped, or is longer than 3 letters, allow optional Arabic prefixes
+        const rawClean = term
+          .replace(/[\u064B-\u065F]/g, "")
+          .replace(/\u0640/g, "");
+        const allowPrefix = rawClean.length > 3;
+        const prefixPattern = allowPrefix ? "(?:[وبكفل]?(?:ال|لل|ٱل)?)?" : "";
 
-    if (uniquePatterns.length > 0) {
-      const regex = new RegExp(`(${uniquePatterns.join("|")})`, "gi");
+        return prefixPattern + patternParts.join("");
+      })
+      .filter(Boolean);
+
+    if (regexTerms.length > 0) {
+      const regex = new RegExp(`(${regexTerms.join("|")})`, "gi");
       parts = textStr.split(regex);
       isRegExpSuccess = true;
     }
@@ -131,7 +81,7 @@ export function HighlightText({
         return i % 2 !== 0 ? (
           <mark
             key={i}
-            className="bg-primary-soft text-primary-dark font-semibold px-0.5 rounded border-b border-primary/30"
+            className="bg-primary-soft text-primary-dark font-medium px-0.5 rounded border-b border-primary/30"
           >
             {part}
           </mark>

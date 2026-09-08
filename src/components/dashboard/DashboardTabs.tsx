@@ -262,8 +262,6 @@ export const BookingsTab = React.memo(function BookingsTab({
   handleViewBookingDetails,
   handleDeleteBooking,
 }: BookingsTabProps) {
-  const [limit, setLimit] = React.useState(30);
-  const displayedBookings = filteredBookings.slice(0, limit);
   return (
     <>
       <DashboardTabHeader title="قائمة الحجوزات" count={filteredBookings.length}>
@@ -306,33 +304,14 @@ export const BookingsTab = React.memo(function BookingsTab({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {displayedBookings.map((booking) => (
+            {filteredBookings.map((booking) => (
               <tr key={booking.id} className="hover:bg-white/50 transition-all group">
                 <td className="px-6 py-4 font-medium text-gray-800 text-sm max-w-[200px] sm:max-w-xs">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-gray-800 truncate">
-                      <HighlightText text={booking.name || booking.user || "---"} search={searchQuery} />
-                    </span>
-                    <span className="text-[10px] font-mono font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                      #<HighlightText text={String(booking.id)} search={searchQuery} />
-                    </span>
+                  <div className="truncate">
+                    <HighlightText text={booking.name || booking.user || "---"} search={searchQuery} />
                   </div>
-                  <div className="text-xs text-gray-400 font-medium truncate mt-0.5 flex items-center gap-2" dir="ltr">
-                    {booking.phone && (
-                      <span className="font-mono">
-                        <HighlightText text={booking.phone} search={searchQuery} />
-                      </span>
-                    )}
-                    {booking.passportNumber && (
-                      <span className="text-[11px] text-gray-500 font-sans">
-                        جواز: <HighlightText text={booking.passportNumber} search={searchQuery} />
-                      </span>
-                    )}
-                    {booking.email && !booking.phone && (
-                      <span className="text-[11px] text-gray-400 truncate">
-                        <HighlightText text={booking.email} search={searchQuery} />
-                      </span>
-                    )}
+                  <div className="text-xs text-gray-400 font-medium truncate mt-0.5">
+                    <HighlightText text={booking.phone || booking.id || ""} search={searchQuery} />
                   </div>
                 </td>
                 <td className="px-6 py-4 font-medium text-gray-700 text-sm">
@@ -385,29 +364,15 @@ export const BookingsTab = React.memo(function BookingsTab({
       <div className="block md:hidden">
         {filteredBookings.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {displayedBookings.map((booking) => (
+            {filteredBookings.map((booking) => (
               <div key={booking.id} className="p-4 bg-white rounded-xl border border-gray-150 hover:shadow-sm transition-all duration-300 space-y-4">
                 <div className="flex justify-between items-start gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="font-semibold text-gray-800 text-sm truncate">
-                        <HighlightText text={booking.name || booking.user || "---"} search={searchQuery} />
-                      </h4>
-                      <span className="text-[10px] font-mono font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                        #<HighlightText text={String(booking.id)} search={searchQuery} />
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-gray-400 font-medium mt-0.5 select-all font-mono flex items-center gap-2 flex-wrap" dir="ltr">
-                      {booking.phone && (
-                        <span>
-                          <HighlightText text={booking.phone} search={searchQuery} />
-                        </span>
-                      )}
-                      {booking.passportNumber && (
-                        <span className="font-sans text-gray-600">
-                          جواز: <HighlightText text={booking.passportNumber} search={searchQuery} />
-                        </span>
-                      )}
+                    <h4 className="font-semibold text-gray-800 text-sm truncate">
+                      <HighlightText text={booking.name || booking.user || "---"} search={searchQuery} />
+                    </h4>
+                    <div className="text-[10px] text-gray-400 font-medium mt-0.5 select-all font-mono">
+                      <HighlightText text={booking.phone || booking.id || ""} search={searchQuery} />
                     </div>
                   </div>
                   <BookingStatusSelect
@@ -461,11 +426,6 @@ export const BookingsTab = React.memo(function BookingsTab({
           </div>
         )}
       </div>
-      {filteredBookings.length > limit && (
-        <div className="mt-6 flex justify-center pb-4">
-          <button onClick={() => setLimit(l => l + 30)} className="px-6 py-2 bg-gray-50 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors border border-gray-200 cursor-pointer">عرض المزيد</button>
-        </div>
-      )}
     </>
   );
 });
@@ -508,8 +468,6 @@ export const GenericItemsTab = React.memo(function GenericItemsTab({
   setIsModalOpen,
   handleDeleteItem,
 }: GenericItemsTabProps) {
-  const [limit, setLimit] = React.useState(30);
-  const displayedItems = items.slice(0, limit);
   return (
     <>
       <DashboardTabHeader title={title} count={items.length}>
@@ -555,11 +513,6 @@ export const GenericItemsTab = React.memo(function GenericItemsTab({
         }}
         onDeleteItem={handleDeleteItem}
       />
-      {items.length > limit && (
-        <div className="mt-6 flex justify-center pb-4">
-          <button onClick={() => setLimit(l => l + 30)} className="px-6 py-2 bg-gray-50 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors border border-gray-200 cursor-pointer">عرض المزيد</button>
-        </div>
-      )}
     </>
   );
 });
@@ -630,8 +583,6 @@ export const SubscribersTab = React.memo(function SubscribersTab({
   setConfirmModal,
   showToast,
 }: SubscribersTabProps) {
-  const [limit, setLimit] = React.useState(30);
-  const displayedSubscribers = filteredSubscribers.slice(0, limit);
   const handleRefresh = async () => {
     try {
       const data = await apiService.getSubscribers();
@@ -688,7 +639,7 @@ export const SubscribersTab = React.memo(function SubscribersTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {displayedSubscribers.map((sub: any) => (
+              {filteredSubscribers.map((sub: any) => (
                 <tr key={sub.id} className="group hover:bg-white/50 transition-all">
                   <td className="px-6 py-4 font-medium text-gray-800 text-sm">
                     <HighlightText text={sub.name || "---"} search={searchQuery} />
@@ -729,7 +680,7 @@ export const SubscribersTab = React.memo(function SubscribersTab({
         </div>
 
         <div className="block md:hidden divide-y divide-gray-100 bg-white">
-          {displayedSubscribers.map((sub: any) => (
+          {filteredSubscribers.map((sub: any) => (
             <div key={sub.id} className="p-4 flex items-center justify-between hover:bg-white/50 transition-all gap-4">
               <div className="space-y-1 min-w-0 flex-1">
                 <h4 className="font-medium text-gray-800 text-sm truncate">
@@ -764,11 +715,6 @@ export const SubscribersTab = React.memo(function SubscribersTab({
             </div>
           )}
         </div>
-        {filteredSubscribers.length > limit && (
-          <div className="p-4 flex justify-center border-t border-gray-100">
-            <button onClick={() => setLimit(l => l + 30)} className="px-6 py-2 bg-gray-50 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors border border-gray-200 cursor-pointer">عرض المزيد</button>
-          </div>
-        )}
       </div>
     </div>
   );
